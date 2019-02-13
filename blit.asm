@@ -1,7 +1,7 @@
 ; #########################################################################
 ;
 ;   blit.asm - Assembly file for EECS205 Assignment 3
-;
+;	SALOME KARIUKI swk6525
 ;
 ; #########################################################################
 
@@ -30,13 +30,13 @@ DrawPixel PROC USES ebx edx x:DWORD, y:DWORD, color:DWORD
 	jge exit
 	cmp y, 0
 	jl exit
-	mov eax, y
+	mov eax, y								;; index= 640*y+x
 	mov edx, 640
 	mul edx
 	add eax, x
 	add eax, ScreenBitsPtr
 	mov ebx, color
-	mov BYTE PTR[eax], bl
+	mov BYTE PTR[eax], bl					;;insert color pixel
 exit:
 	ret 			; Don't delete this line!!!
 DrawPixel ENDP
@@ -78,6 +78,15 @@ inner_loop:
 	mov cl, BYTE PTR[edi+edx]							;; get color
 	cmp cl, bl											;; confirm it is not transparent
 	je inc_var
+	cmp curr_x, 0										;;bound checking
+	jl inc_var
+	cmp curr_x, 639
+	jg inc_var
+	cmp curr_y, 0
+	jl inc_var
+	cmp curr_y, 479
+	jg inc_var
+
 	invoke DrawPixel, curr_x, curr_y, [edi+edx]			;; draw pixel
 
 inc_var:
@@ -99,9 +108,10 @@ exit:
 BasicBlit ENDP
 
 
-RotateBlit PROC lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXPT
+RotateBlit PROC USES ebx ecx edx esi edi lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXPT
 	LOCAL  cosa:FXPT, sina:FXPT, shiftX:DWORD, shiftY:DWORD, dstWidth:DWORD, dstHeight:DWORD,
-			dstX:DWORD, dstY:DWORD, srcX:DWORD, srcY:DWORD, mapWidth:DWORD, mapHeight:DWORD
+			dstX:DWORD, dstY:DWORD, srcX:DWORD, srcY:DWORD, mapWidth:DWORD, mapHeight:DWORD,
+			transparent:BYTE, currColor:BYTE, currX:DWORD, currY:DWORD
 
 	invoke FixedSin, angle
 	mov sina, eax
@@ -112,6 +122,10 @@ RotateBlit PROC lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXP
 	mov mapWidth, eax
 	mov eax, (EECS205BITMAP PTR[esi]).dwHeight
 	mov mapHeight, eax
+	mov al, (EECS205BITMAP PTR[esi]).bTransparent
+	mov transparent, al
+	mov edi, (EECS205BITMAP PTR[esi]).lpBytes			;; start of colors
+
 
 set_shiftX:
 	mov eax, mapWidth
@@ -145,20 +159,95 @@ set_dstWidth_dstHeight:
 
 ;;loop work starts here
 	neg eax
-	mov dstX, eax
+	mov dstX, eax								;;set dstX
 
 outer_loop:
 	mov eax, dstWidth
-	cmp dstX, eax
+	cmp dstX, eax								;;ensure dstX is less than dstWidth
 	jge exit
 	mov eax, dstHeight
-	mov dstY, eax
+	neg eax
+	mov dstY, eax								;;set dstY
+
+inner_loop_conditions:
+	mov eax, dstHeight
+	cmp dstY, eax								;;ensure dstY is less than dstHeight
+	jge inc_outer_loop
+
+;;inner_loop:
+set_srcX:
+	mov eax, dstX
+	imul cosa
+	sar eax, 16
+	mov srcX, eax
+	mov eax, dstY
+	imul sina
+	sar eax, 16
+	add srcX, eax
+set_srcY:
+	mov eax, dstY
+	imul cosa
+	sar eax, 16
+	mov srcY, eax
+	mov eax, dstX
+	imul sina
+	sar eax, 16
+	sub srcY, eax
+
+if_statement:
+	mov ebx, srcX								;; bounds checking on srcX
+	cmp ebx, 0
+	jl inc_inner_loop
+	cmp ebx, mapWidth
+	jge inc_inner_loop
+	
+	mov ecx, srcY								;; bounds checking on srcY
+	cmp ecx, 0
+	jl inc_inner_loop
+	cmp ecx, mapHeight
+	jge inc_inner_loop
+
+	mov ecx, xcenter							;; bounds checking on currX
+	add ecx, dstX
+	sub ecx, shiftX
+	mov currX, ecx
+	cmp ecx, 0
+	jl inc_inner_loop
+	cmp ecx, 639
+	jge inc_inner_loop
+
+	mov ecx, ycenter							;; bounds checking on currY
+	add ecx, dstY
+	sub ecx, shiftY
+	mov currY, ecx
+	cmp ecx, 0
+	jl inc_inner_loop
+	cmp ecx, 479
+	jge inc_inner_loop
+
+	mov eax, srcY								;; ensure not transparent
+	mul mapWidth
+	add eax, srcX
+	xor ebx, ebx
+	mov bl, BYTE PTR[edi+eax]
+	cmp transparent, bl
+	je inc_inner_loop
+
+	invoke DrawPixel, currX, currY, ebx
+
+
+
+inc_inner_loop:
+	inc dstY
+	jmp inner_loop_conditions
+
 
 inc_outer_loop:
 	inc dstX
+	jmp outer_loop
 
 
-
+exit:
 	ret 			; Don't delete this line!!!		
 RotateBlit ENDP
 

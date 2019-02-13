@@ -1,7 +1,7 @@
 ; #########################################################################
 ;
 ;   trig.asm - Assembly file for EECS205 Assignment 3
-;
+;	SALOME KARIUKI swk6525
 ;
 ; #########################################################################
 
@@ -27,57 +27,57 @@ PI_INC_RECIP =  5340353        	;;  00517CC1 Use reciprocal to find the table en
 .CODE
 
 FixedSin PROC USES edx ebx angle:FXPT
-	local is_negative_sin:DWORD
-	mov is_negative_sin, 0
+	local is_negative_sin:DWORD 
+	mov is_negative_sin, 0								;; boolean to check if angle in (pi,2pi)
 	mov eax, angle
 	cmp eax, 0
 	jl make_angle_positive
 	jmp make_angle_less_than_twoPI
 
-make_angle_positive:
+make_angle_positive:									;;keep adding 2pi till angle is positive or zero
 	cmp eax, 0
 	jge make_less_than_pi
 	add eax, TWO_PI
 	jmp make_angle_positive
 
-make_angle_less_than_twoPI:
+make_angle_less_than_twoPI:								;; keep subtracting 2pi till angle is [0,2pi)
 	cmp eax, TWO_PI
 	jl make_less_than_pi
 	sub eax, TWO_PI
 	jmp make_angle_less_than_twoPI
 
-make_less_than_pi:
+make_less_than_pi:										;; check if angle is [pi,2pi)
 	cmp eax, PI
 	jge reduce_by_pi
 	jmp compare_pi_half
 
-reduce_by_pi:
+reduce_by_pi:											;; decrement by pi and set boolean to true
 	sub eax, PI
 	mov is_negative_sin, 1
 
-compare_pi_half:
+compare_pi_half:										;; check if angle (pi/2,pi)					
 	cmp eax, PI_HALF
 	jg pi_less_angle
 	jmp get_sin
 
-pi_less_angle:
+pi_less_angle:											;; make angle [0,pi/2]
 	mov ebx, PI
 	sub ebx, eax
 	mov eax, ebx
 
 get_sin:
-	cmp eax, PI_HALF
+	cmp eax, PI_HALF									;;if pi/2 or 3pi/2 ret 1 or -1
 	je special_case
 	mov edx, PI_INC_RECIP
-	imul edx
-	movzx eax, WORD PTR[SINTAB+edx*2]
+	imul edx											;; index of sin
+	movzx eax, WORD PTR[SINTAB+edx*2]					;; get value from sintab
 	jmp negative_sin
 
-special_case:
+special_case:											;; set eax t0 1
 	mov eax, 1
 	shl eax, 16
 
-negative_sin:
+negative_sin:											;; check if angle (pi,2pi) using boolean
 	cmp is_negative_sin, 0
 	je exit
 	neg eax
