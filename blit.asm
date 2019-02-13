@@ -21,9 +21,8 @@ include blit.inc
 	;; If you need to, you can place global variables here
 	
 .CODE
-
 DrawPixel PROC USES ebx edx x:DWORD, y:DWORD, color:DWORD
-	cmp x, 640
+	cmp x, 640								;; check all bounds
 	jge exit
 	cmp x, 0
 	jl exit
@@ -47,7 +46,7 @@ BasicBlit PROC USES ebx ecx edx esi edi ptrBitmap:PTR EECS205BITMAP , xcenter:DW
 	LOCAL curr_x:DWORD, mapwidth:DWORD, end_x:DWORD, curr_y:DWORD, end_y:DWORD, index:DWORD, transparent:BYTE
 
 set_variables:
-	mov index, 0										; used to index bitmap
+	mov index, 0										;; used to index bitmap
 	mov eax, ptrBitmap									;;address of bitmap
 	xor ebx, ebx
 	mov bl, (EECS205BITMAP PTR[eax]).bTransparent		;; transparent color
@@ -101,6 +100,64 @@ BasicBlit ENDP
 
 
 RotateBlit PROC lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXPT
+	LOCAL  cosa:FXPT, sina:FXPT, shiftX:DWORD, shiftY:DWORD, dstWidth:DWORD, dstHeight:DWORD,
+			dstX:DWORD, dstY:DWORD, srcX:DWORD, srcY:DWORD, mapWidth:DWORD, mapHeight:DWORD
+
+	invoke FixedSin, angle
+	mov sina, eax
+	invoke FixedCos, angle
+	mov cosa, eax
+	mov esi, lpBmp
+	mov eax, (EECS205BITMAP PTR[esi]).dwWidth
+	mov mapWidth, eax
+	mov eax, (EECS205BITMAP PTR[esi]).dwHeight
+	mov mapHeight, eax
+
+set_shiftX:
+	mov eax, mapWidth
+	imul cosa
+	sar eax, 16									;;get rid of fractional part
+	sar eax, 1									;; divide by 2
+	mov shiftX, eax
+	mov eax, mapHeight							
+	imul sina
+	sar eax, 16									;;get rid of fractional part
+	sar eax, 1									;; divide by 2
+	sub shiftX, eax								
+
+set_shiftY:
+	mov eax, mapHeight
+	imul cosa
+	sar eax, 16									;;get rid of fractional part
+	sar eax, 1									;; divide by 2
+	mov shiftY, eax
+	mov eax, mapWidth							
+	imul sina
+	sar eax, 16									;;get rid of fractional part
+	sar eax, 1									;; divide by 2
+	add shiftY, eax								
+
+set_dstWidth_dstHeight:
+	mov eax, mapWidth
+	add eax, mapHeight
+	mov dstWidth, eax
+	mov dstHeight, eax
+
+;;loop work starts here
+	neg eax
+	mov dstX, eax
+
+outer_loop:
+	mov eax, dstWidth
+	cmp dstX, eax
+	jge exit
+	mov eax, dstHeight
+	mov dstY, eax
+
+inc_outer_loop:
+	inc dstX
+
+
 
 	ret 			; Don't delete this line!!!		
 RotateBlit ENDP
