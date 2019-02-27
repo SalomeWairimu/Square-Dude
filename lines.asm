@@ -1,7 +1,7 @@
 ; #########################################################################
 ;
 ;   lines.asm - Assembly file for EECS205 Assignment 2
-;
+;	SALOME KARIUKI netid:swk6525
 ;
 ; #########################################################################
 
@@ -31,7 +31,8 @@ DrawLine PROC USES ebx ecx edi esi edx x0:DWORD, y0:DWORD, x1:DWORD, y1:DWORD, c
 	;; For example:
 	LOCAL delta_x:SDWORD, delta_y:SDWORD, inc_x:SDWORD,inc_y:SDWORD, error:SDWORD, two:SDWORD
 	;; Place your code here
-	
+
+;;initializes delta_x,delta_y,inc_x,inc_y,error,two,curr_x in edi, and curr_y in esi
 initialize:
 	mov ebx, x1
 	mov ecx, y1
@@ -42,25 +43,28 @@ initialize:
 	mov inc_x, 1
 	mov inc_y, 1
 	mov error, 0
-	mov edi, x0
-	mov esi, y0
+	mov edi, x0 ;;contains curr_x
+	mov esi, y0 ;;contains curr_y
 	mov two, 2
 	mov edx, 0
     jmp make_absolute_dx
-	
+
+;; makes delta_x = abs(delta_x)	and inc_x negative if delta_x was negative
 make_absolute_dx:
 	cmp delta_x, 0
 	jge make_absolute_dy
 	neg delta_x
 	neg inc_x
-      jmp make_absolute_dy
+    jmp make_absolute_dy
 
+;; makes delta_y = abs(delta_y)	and inc_y negative if delta_y was negative
 make_absolute_dy:
 	cmp delta_y, 0
 	jge set_error_dx
 	neg delta_y
 	neg inc_y
-      jmp set_error_dx
+    jmp set_error_dx
+;; checks if delta_x>delta_y and sets error depending on result
 set_error_dx:
 	mov ebx, delta_x
 	mov ecx, delta_y
@@ -76,6 +80,8 @@ set_error_dy:
 	neg eax
 	mov error, eax
 	jmp while_condition
+
+;; executes while loop body
 while_loop:
 	invoke DrawPixel, edi,esi,color
 	mov eax, error
@@ -91,7 +97,9 @@ section_2:
 	jge while_condition
 	add error, ebx
 	add esi, inc_y
-      jmp while_condition
+    jmp while_condition
+
+;;checks if loop conditions have been met, if not returns
 while_condition:
 	cmp edi, x1
 	jne while_loop

@@ -111,7 +111,7 @@ BasicBlit ENDP
 RotateBlit PROC USES ebx ecx edx esi edi lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXPT
 	LOCAL  cosa:FXPT, sina:FXPT, shiftX:DWORD, shiftY:DWORD, dstWidth:DWORD, dstHeight:DWORD,
 			dstX:DWORD, dstY:DWORD, srcX:DWORD, srcY:DWORD, mapWidth:DWORD, mapHeight:DWORD,
-			transparent:BYTE, currColor:BYTE, currX:DWORD, currY:DWORD
+			transparent:BYTE, currX:DWORD, currY:DWORD
 
 	invoke FixedSin, angle
 	mov sina, eax

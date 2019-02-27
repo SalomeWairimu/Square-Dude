@@ -21,6 +21,12 @@ set MASMPATH=C:\masm32\bin
 
 set MASMLIBPATH=C:\masm32\lib
 
+:: make sure you add the path to includes: windows.inc, user32.inc, winmm.inc
+:: those includes normally live in C:\masm32\include on windows
+:: if using wine on Mac, same trick as above.
+
+set MASMINCPATH=C:\masm32\include
+
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :::
 ::: DO NOT NEED TO MODIFY ANYTHING BELOW
@@ -29,24 +35,44 @@ set MASMLIBPATH=C:\masm32\lib
 
 set path=%path%;%MASMPATH%
 
-ml  /c  /coff  /Cp stars.asm
+ml  /I%MASMINCPATH% /c  /coff  /Cp stars.asm
 
 if %errorlevel% neq 0 goto :error
 
-ml  /c  /coff  /Cp lines.asm
+ml  /I%MASMINCPATH% /c  /coff  /Cp lines.asm
 
 if %errorlevel% neq 0 goto :error
 
-ml  /c  /coff  /Cp trig.asm
+ml  /I%MASMINCPATH% /c  /coff  /Cp trig.asm
 
 if %errorlevel% neq 0 goto :error
 
-ml  /c  /coff  /Cp blit.asm
+ml  /I%MASMINCPATH% /c  /coff  /Cp blit.asm
+
+if %errorlevel% neq 0 goto :error
+
+ml  /I%MASMINCPATH% /c  /coff  /Cp minion.asm
+
+if %errorlevel% neq 0 goto :error
+
+ml  /I%MASMINCPATH% /c  /coff  /Cp dragon.asm
+
+if %errorlevel% neq 0 goto :error
+
+ml  /I%MASMINCPATH% /c  /coff  /Cp asteroid_000.asm
+
+if %errorlevel% neq 0 goto :error
+
+ml  /I%MASMINCPATH% /c  /coff  /Cp jelly.asm
+
+if %errorlevel% neq 0 goto :error
+
+ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
 
 if %errorlevel% neq 0 goto :error
 
 
-link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% blit.obj trig.obj lines.obj stars.obj libblit.obj
+link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj minion.obj dragon.obj asteroid_000.obj jelly.obj libgame.obj
 
 if %errorlevel% neq 0 goto :error
 
