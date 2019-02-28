@@ -63,7 +63,7 @@ ml  /I%MASMINCPATH% /c  /coff  /Cp asteroid_000.asm
 
 if %errorlevel% neq 0 goto :error
 
-ml  /I%MASMINCPATH% /c  /coff  /Cp jelly.asm
+ml  /I%MASMINCPATH% /c  /coff  /Cp patty.asm
 
 if %errorlevel% neq 0 goto :error
 
@@ -72,7 +72,7 @@ ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
 if %errorlevel% neq 0 goto :error
 
 
-link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj minion.obj dragon.obj asteroid_000.obj jelly.obj libgame.obj
+link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj minion.obj dragon.obj asteroid_000.obj patty.obj libgame.obj
 
 if %errorlevel% neq 0 goto :error
 
