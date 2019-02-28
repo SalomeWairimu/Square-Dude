@@ -2,6 +2,7 @@
 ;
 ;   game.asm - Assembly file for;
 ;	EECS205 Assignment 4/5
+;	Salome Kariuki swk6525
 ;
 ; #########################################################################
 
@@ -19,8 +20,6 @@ include game.inc
 ;; Has keycodes
 include keys.inc
 
-include \masm32\include\masm32.inc
-includelib \masm32\lib\masm32.lib
 	
 .DATA
 
@@ -40,8 +39,8 @@ player GAMEOBJECT<500, 80, 0, 0, 0, 0, 1, OFFSET minion>
 enemy GAMEOBJECT<400, 250, 0, 0, 0, 0, 1, OFFSET dragon>
 rock GAMEOBJECT<250, 250, 0, 0, 0, 102943, 0, OFFSET asteroid_000>
 GameOverStr BYTE "Game Over", 0
-playerscore DWORD 0
-score BYTE "0000", 0
+PlayerScore DWORD 0
+ShownScore BYTE "0000", 0
 
 .CODE
 CheckIntersect PROC USES ebx ecx edx oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
@@ -254,13 +253,11 @@ GameInit PROC uses ebx ecx edx
 	lea ecx, enemy
 	invoke BasicBlit, OFFSET dragon, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY
 	invoke CreateFood
-	rdtsc
-	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
 GameInit ENDP
 
 
-GamePlay PROC uses ebx ecx edx esi
+GamePlay PROC uses ebx ecx edx esi edi
 	invoke ClearScreen
 	invoke DrawStarField
 	invoke CreateFood
@@ -288,8 +285,12 @@ eating:
 	jne add_score
 	jmp done
 add_score:
-	add playerscore, 2
-	invoke DrawStr, offset score, 320, 240, 0ffh
+	mov edx, offset PlayerScore
+	add DWORD PTR [edx], 2
+	add edx, 2
+	mov edi, offset ShownScore
+	add DWORD PTR [edi], 2
+	invoke DrawStr, offset ShownScore, 20, 40, 0ffh
 	jmp done
 	
 game_over:
