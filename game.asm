@@ -26,18 +26,19 @@ include keys.inc
 GAMEOBJECT STRUCT
 	posX DWORD ?
 	posY DWORD ?
-	direction DWORD ?
-	velocity DWORD ?
+	velx DWORD ?
+	vely DWORD ?
 	acceleration DWORD ?
 	angle FXPT ?
 	alive DWORD ?
 	bmap DWORD ?
 GAMEOBJECT ENDS
 
-food GAMEOBJECT<100, 150, 0, 0, 0, 0, 0, OFFSET patty>
-player GAMEOBJECT<500, 80, 0, 0, 0, 0, 1, OFFSET minion>
-enemy GAMEOBJECT<400, 250, 0, 0, 0, 0, 1, OFFSET dragon>
-rock GAMEOBJECT<250, 250, 0, 0, 0, 102943, 0, OFFSET asteroid_000>
+food GAMEOBJECT<100, 150, 0, 0, 0, 0, 0, patty>
+player GAMEOBJECT<500, 80, 0, 0, 0, 0, 1, OFFSET spongebob>
+enemy GAMEOBJECT<400, 250, 0, 0, 0, 0, 1, OFFSET plankton>
+enemy2 GAMEOBJECT<500, 250, 0, 0, 0, 0, 1, OFFSET plankton>
+shop GAMEOBJECT<240, 50, 0, 0, 0, 102943, 0, OFFSET krustykrab>
 GameOverStr BYTE "Game Over", 0
 PlayerScore DWORD 0
 ShownScore BYTE "0000", 0
@@ -120,7 +121,6 @@ okay:
 exit:
 	ret												;; Do not delete this line!!!
 CheckIntersect ENDP
-
 
 Playermove PROC USES ebx ecx
 keyboard:
@@ -247,11 +247,12 @@ ClearScreen ENDP
 
 
 GameInit PROC uses ebx ecx edx
-	invoke DrawStarField
 	lea ebx, player
-	invoke BasicBlit, OFFSET minion, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
+	invoke BasicBlit, OFFSET spongebob, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
 	lea ecx, enemy
-	invoke BasicBlit, OFFSET dragon, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY
+	invoke BasicBlit, OFFSET plankton, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY
+	lea ebx, shop
+	invoke BasicBlit, OFFSET krustykrab, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
 	invoke CreateFood
 	ret         ;; Do not delete this line!!!
 GameInit ENDP
@@ -259,31 +260,31 @@ GameInit ENDP
 
 GamePlay PROC uses ebx ecx edx esi edi
 	invoke ClearScreen
-	invoke DrawStarField
 	invoke CreateFood
 create_player:
 	lea ebx, player
-	invoke BasicBlit, OFFSET minion, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
+	invoke BasicBlit, OFFSET spongebob, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
 create_enemy:
 	lea ecx, enemy
-	invoke RotateBlit, OFFSET dragon, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).angle
+	invoke RotateBlit, OFFSET plankton, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).angle
+	lea ecx, enemy2
+	invoke RotateBlit, OFFSET plankton, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).angle
+create_shop:
+	lea esi, shop
+	invoke BasicBlit, OFFSET krustykrab, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY
 check:
 	cmp (GAMEOBJECT PTR[ebx]).alive, 0
 	je game_over
-keep_playing:
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET minion, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET dragon
-	cmp eax, 0
-	jne game_over
+
 move:
 	invoke Playermove
 	invoke Enemymove
 	invoke ask_for_food
 eating:
 	lea esi, food
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET minion, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY, OFFSET food
+	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY, OFFSET patty
 	cmp eax, 0
-	jne add_score
-	jmp done
+	je keep_playing
 add_score:
 	mov edx, offset PlayerScore
 	add DWORD PTR [edx], 2
@@ -291,8 +292,13 @@ add_score:
 	mov edi, offset ShownScore
 	add DWORD PTR [edi], 2
 	invoke DrawStr, offset ShownScore, 20, 40, 0ffh
-	jmp done
-	
+
+keep_playing:
+	lea ecx, enemy
+	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
+	cmp eax, 0
+	je done
+
 game_over:
 	mov (GAMEOBJECT PTR[ebx]).alive, 0
 	invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
