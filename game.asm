@@ -19,8 +19,11 @@ include game.inc
 
 ;; Has keycodes
 include keys.inc
+include \masm32\include\user32.inc
+includelib \masm32\lib\user32.lib
 include \masm32\include\masm32.inc
 includelib \masm32\lib\masm32.lib
+
 
 	
 .DATA
@@ -45,9 +48,9 @@ enemy2 GAMEOBJECT<500, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
 enemy3 GAMEOBJECT<300, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
 shop GAMEOBJECT<240, 50, 0, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
 GameOverStr BYTE "Game Over", 0
-fmtsScoreStr BYTE "Score: %d", 0
-fmtsFoodStr BYTE "Food Points: %d", 0
-fmtsLivesStr BYTE "Lives: %d", 0
+fmtScoreStr BYTE "Score: %d", 0
+fmtFoodStr BYTE "Food Points: %d", 0
+fmtLivesStr BYTE "Lives: %d", 0
 outScoreStr BYTE 40 DUP(0)
 outFoodStr BYTE 40 DUP(0)
 outLivesStr BYTE 40 DUP(0)
@@ -164,7 +167,7 @@ Playermove ENDP
 Enemymove PROC USES ebx ecx edx esi edi
 	LOCAL playerX: DWORD, playerY: DWORD, enemyX: DWORD, enemyY: DWORD
 	lea ebx, player
-	lea ecx, enemy
+	lea ecx, enemy1
 	xor esi, esi
 	xor edi, edi
 set_x:
@@ -232,7 +235,7 @@ Shopping PROC USES ebx esi
 	je done
 	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 10
 	jl broke
-shop:
+shopnow:
 	invoke DrawStr, offset SelectStr, 180, 200, 0ffh
 	mov ecx, KeyPress
 	cmp ecx, VK_L
@@ -255,15 +258,7 @@ done:
 Shopping ENDP
 
 
-CreateFood PROC USES edx
-	lea edx, food
-	invoke nrandom, 616
-	mov (GAMEOBJECT PTR[edx]).posX, eax
-	invoke nrandom, 459
-	mov (GAMEOBJECT PTR[edx]).posY, eax
-	invoke BasicBlit, OFFSET patty, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
-	ret
-CreateFood ENDP
+
 
 CreateShop PROC USES esi
 	lea esi, shop
@@ -304,17 +299,17 @@ ClearScreen ENDP
 
 CheckEnemyCollision PROC USES ecx ebx
 	lea ebx, player
-enemy1:
+checkenemy1:
 	lea ecx, enemy1
 	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
 	cmp eax, 0
 	jne reduce_lives
-enemy2:
+checkenemy2:
 	lea ecx, enemy2
 	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
 	cmp eax, 0
 	jne reduce_lives
-enemy3:
+checkenemy3:
 	lea ecx, enemy3
 	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
 	cmp eax, 0
@@ -357,7 +352,7 @@ lives:
 	invoke DrawStr, offset outLivesStr, 500, 10, 0ffh
 foodpoints:
 	push (GAMEOBJECT PTR[ebx]).foodpoints
-	push offset fmtsFoodStr
+	push offset fmtFoodStr
 	push offset outFoodStr
 	call wsprintf
 	add esp, 12
@@ -366,21 +361,39 @@ done:
 	ret
 StatusBoard ENDP
 
+OrigFood PROC USES edx
+	lea edx, food
+	invoke BasicBlit, OFFSET patty, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
+	ret
+OrigFood ENDP
+
+CreateFood PROC USES edx
+	rdtsc
+	invoke nseed, eax
+	lea edx, food
+	invoke nrandom, 500
+	mov (GAMEOBJECT PTR[edx]).posX, 500
+	; invoke nrandom, 5
+	mov (GAMEOBJECT PTR[edx]).posY, 350
+	; invoke BasicBlit, OFFSET patty, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
+	ret
+CreateFood ENDP
+
 GameInit PROC
-	invoke CreateFood
+	invoke OrigFood
+	;invoke CreateFood
 	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
 	invoke StatusBoard
-	rdtsc
-	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
 GameInit ENDP
 
 
 GamePlay PROC uses ebx
 	invoke ClearScreen
-	invoke CreateFood
+	;invoke CreateFood
+	invoke OrigFood
 	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
@@ -392,7 +405,7 @@ player_alive:
 move:
 	add (GAMEOBJECT PTR[ebx]).score, 1
 	invoke Playermove
-	invoke Enemymove
+	; invoke Enemymove
 	invoke Shopping
 	invoke PlayerAte
 keep_playing:
