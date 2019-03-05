@@ -51,10 +51,6 @@ ml  /I%MASMINCPATH% /c  /coff  /Cp blit.asm
 
 if %errorlevel% neq 0 goto :error
 
-ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
-
-if %errorlevel% neq 0 goto :error
-
 ml /I%MASMINCPATH% /c  /coff  /Cp patty.asm
 
 if %errorlevel% neq 0 goto :error
@@ -68,6 +64,10 @@ ml /I%MASMINCPATH% /c  /coff  /Cp krustykrab.asm
 if %errorlevel% neq 0 goto :error
 
 ml /I%MASMINCPATH% /c  /coff  /Cp spongebob.asm
+
+if %errorlevel% neq 0 goto :error
+
+ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
 
 if %errorlevel% neq 0 goto :error
 

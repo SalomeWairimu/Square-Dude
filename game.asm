@@ -367,32 +367,40 @@ OrigFood PROC USES edx
 	ret
 OrigFood ENDP
 
-CreateFood PROC USES edx
-	rdtsc
-	invoke nseed, eax
+CreateFood PROC USES edx ecx
 	lea edx, food
-	invoke nrandom, 500
-	mov (GAMEOBJECT PTR[edx]).posX, 500
-	; invoke nrandom, 5
-	mov (GAMEOBJECT PTR[edx]).posY, 350
+	push ecx
+	push edx
+	invoke nrandom, 590
+	pop edx
+	pop ecx
+	add eax, 24
+	mov (GAMEOBJECT PTR[edx]).posX, eax
+	push ecx
+	push edx
+	invoke nrandom, 430
+	pop edx
+	pop ecx
+	add eax, 20
+	mov (GAMEOBJECT PTR[edx]).posY, eax
 	; invoke BasicBlit, OFFSET patty, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
 	ret
 CreateFood ENDP
 
 GameInit PROC
 	invoke OrigFood
-	;invoke CreateFood
 	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
 	invoke StatusBoard
+	rdtsc
+	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
 GameInit ENDP
 
 
 GamePlay PROC uses ebx
 	invoke ClearScreen
-	;invoke CreateFood
 	invoke OrigFood
 	invoke CreateShop
 	invoke CreatePlayer
@@ -405,7 +413,7 @@ player_alive:
 move:
 	add (GAMEOBJECT PTR[ebx]).score, 1
 	invoke Playermove
-	; invoke Enemymove
+	invoke Enemymove
 	invoke Shopping
 	invoke PlayerAte
 keep_playing:
