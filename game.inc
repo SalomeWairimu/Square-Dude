@@ -38,10 +38,24 @@ EXTERNDEF patty:EECS205BITMAP
 ;; User Defined Functions
 GameInit PROTO
 GamePlay PROTO
-CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP 
-Playermove PROTO
+StatusBoard PROTO
 ClearScreen PROTO
-CreateFood	PROTO
+CreateFood PROTO
+OrigFood PROTO
+MissileEnemyCollision PROTO
+ShootMissile PROTO
+PlayerEnemyCollision PROTO
+DeadEnemymove PROTO obj:DWORD
+Enemymove PROTO obj:DWORD
+UpdateEnemies PROTO
+CreateEnemies PROTO
+PlayerMove PROTO
+UpdatePlayer PROTO
+CreatePlayer PROTO
+Shopping PROTO
+CreateShop PROTO
+CheckBounds PROTO
+CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 
 
 
