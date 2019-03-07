@@ -43,17 +43,20 @@ GAMEOBJECT ENDS
 
 food GAMEOBJECT<100, 150, 0, 0, 0, 0, 0, 0, 0, OFFSET patty>
 player GAMEOBJECT<500, 80, 0, 0, 0, 0, 3, 0, 0, OFFSET spongebob>
-enemy1 GAMEOBJECT<400, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
-enemy2 GAMEOBJECT<500, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
-enemy3 GAMEOBJECT<300, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
+enemies GAMEOBJECT 3 DUP <400, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
+; enemy2 GAMEOBJECT<500, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
+; enemy3 GAMEOBJECT<300, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
 shop GAMEOBJECT<240, 50, 0, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
+missile GAMEOBJECT<0, 0, 0, 0, 0, 0, 0, 0, 0, OFFSET missile>
 GameOverStr BYTE "Game Over", 0
 fmtScoreStr BYTE "Score: %d", 0
 fmtFoodStr BYTE "Food Points: %d", 0
 fmtLivesStr BYTE "Lives: %d", 0
+fmtMissilesStr BYTE "Missiles: %d", 0
 outScoreStr BYTE 40 DUP(0)
 outFoodStr BYTE 40 DUP(0)
 outLivesStr BYTE 40 DUP(0)
+outMissilesStr BYTE 40 DUP(0)
 SelectStr BYTE "Do you want to purchase 1 extra life or a gun? Press L for life and M for missile", 0
 BrokeStr BYTE "You're broke, You need at least 10 patties to buy anything", 0
 
@@ -136,97 +139,60 @@ exit:
 	ret												;; Do not delete this line!!!
 CheckIntersect ENDP
 
-Playermove PROC USES ebx ecx
-keyboard:
-	mov ecx, OFFSET player
-	mov ebx, KeyPress
-	cmp ebx, VK_UP
-	je up
-	cmp ebx, VK_DOWN
-	je down
-	cmp ebx, VK_LEFT
-	je left
-	cmp ebx, VK_RIGHT
-	je right
-	jmp exit
-up:
-	sub (GAMEOBJECT PTR[ecx]).posY, 4
-	jmp exit
-down:
-	add (GAMEOBJECT PTR[ecx]).posY, 4
-	jmp exit
-left:
-	sub (GAMEOBJECT PTR[ecx]).posX, 4
-	jmp exit
-right:
-	add (GAMEOBJECT PTR[ecx]).posX, 4
-exit:
-	ret												;; Do not delete this line!!!
-Playermove ENDP
-	
-Enemymove PROC USES ebx ecx edx esi edi
-	LOCAL playerX: DWORD, playerY: DWORD, enemyX: DWORD, enemyY: DWORD
-	lea ebx, player
-	lea ecx, enemy1
-	xor esi, esi
-	xor edi, edi
-set_x:
-	mov edx, (GAMEOBJECT PTR[ebx]).posX
-	mov playerX, edx
+
+CheckBounds PROC USES ecx edx obj:DWORD newvelx:DWORD newvely:DWORD
+	LOCAL xpos:DWORD, ypos:DWORD, xvel:DWORD, yvel:DWORD
+	mov ecx, obj
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
-	mov enemyX, edx
-	cmp playerX, edx
-	jl dec_x
-inc_x:
-	add (GAMEOBJECT PTR[ecx]).posX, 1
-	mov esi, 1
-	jmp set_y
-dec_x:
-	sub (GAMEOBJECT PTR[ecx]).posX, 1
-set_y:
-	mov edx, (GAMEOBJECT PTR[ebx]).posY
-	mov playerY, edx
+	mov xpos, edx
 	mov edx, (GAMEOBJECT PTR[ecx]).posY
-	mov enemyY, edx
-	cmp playerY, edx
-	jl dec_y
-inc_y:
-	add (GAMEOBJECT PTR[ecx]).posY, 1
-	mov edi, 1
-	jmp set_angle
-dec_y:
-	sub (GAMEOBJECT PTR[ecx]).posY, 1
-set_angle:
-	cmp esi, edi
-	jl add_5pi_quarter
-	cmp esi, edi
-	jg add_pi_quarter
-	cmp esi, 0
-	je add_3pi_quarter
+	mov ypos, edx
+	mov edx, (GAMEOBJECT PTR[ecx]).velX
+	mov xvel, edx
+	mov edx, (GAMEOBJECT PTR[ecx]).velY
+	mov yvel, edx
 
-add_7pi_quarter:
-	mov (GAMEOBJECT PTR[ecx]).angle, 51471
-	jmp done
-add_pi_quarter:
-	mov (GAMEOBJECT PTR[ecx]).angle, 360297
-	jmp done
+check_x_dir:
+	cmp xvel, 0
+	jl check_left_wall
+check_right_wall:
+	cmp xpos, 590
+	jl check_y_dir
+	neg newvelx
+	mov (GAMEOBJECT PTR[ecx]).velX, newvelx
+	jmp check_y_dir
+check_left_wall:
+	cmp xpos, 50
+	jg check_y_dir
+	mov (GAMEOBJECT PTR[ecx]).velX, newvelx
 
-add_5pi_quarter:
-	mov (GAMEOBJECT PTR[ecx]).angle, 154413 
+check_y_dir:
+	cmp yvel, 0
+	jl check_north_wall
+check_south_wall:
+	cmp ypos, 420
+	jl done
+	neg newvely
+	mov (GAMEOBJECT PTR[ecx]).velY, newvely
 	jmp done
-add_3pi_quarter:
-	mov (GAMEOBJECT PTR[ecx]).angle, 257355
+check_north_wall:
+	cmp ypos, 60
+	jg done
+	mov (GAMEOBJECT PTR[ecx]).velY, newvely
 
 done:
 	ret
-Enemymove ENDP
+CheckBounds ENDP
 
-	; mov ebx, OFFSET MouseStatus
-	; mov edx, (MouseInfo PTR[ebx]).buttons
-	; mov eax, (MouseInfo PTR[ebx]).horiz
-	; mov esi, (MouseInfo PTR[ebx]).vert
-	; cmp edx, MK_LBUTTON
-	
+;;;;;;;;;;;;;   SHOP FUNCTIONS
+
+CreateShop PROC USES esi
+	lea esi, shop
+	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY
+	ret
+CreateShop ENDP
+
+
 Shopping PROC USES ebx esi
 	lea ebx, player
 	lea esi, shop
@@ -258,67 +224,205 @@ done:
 Shopping ENDP
 
 
-
-
-CreateShop PROC USES esi
-	lea esi, shop
-	invoke BasicBlit, OFFSET krustykrab, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY
-	ret
-CreateShop ENDP
-
+;;;;;;;;;;;;;   PLAYER FUNCTIONS
 CreatePlayer PROC USES ebx
 	lea ebx, player
-	invoke BasicBlit, OFFSET spongebob, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
+	invoke BasicBlit, (GAMEOBJECT PTR[ebx]).bmap, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
 	ret
 CreatePlayer ENDP
 
-CreateEnemies PROC USES ecx
-	lea ecx, enemy1
-	invoke RotateBlit, OFFSET plankton, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).angle
-	lea ecx, enemy2
-	invoke RotateBlit, OFFSET plankton, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).angle
-	lea ecx, enemy3
-	invoke RotateBlit, OFFSET plankton, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).angle
+
+UpdatePlayer PROC USES ebx ecx
+keyboard:
+	mov ecx, OFFSET player
+	mov ebx, KeyPress
+	cmp ebx, VK_UP
+	je up
+	cmp ebx, VK_DOWN
+	je down
+	cmp ebx, VK_LEFT
+	je left
+	cmp ebx, VK_RIGHT
+	je right
+	jmp done
+up:
+	mov (GAMEOBJECT PTR[ecx]).velY, -5
+	jmp moveplayer
+down:
+	mov (GAMEOBJECT PTR[ecx]).velY, 5
+	jmp moveplayer
+left:
+	mov (GAMEOBJECT PTR[ecx]).velX, -5
+	jmp moveplayer
+right:
+	mov (GAMEOBJECT PTR[ecx]).velX, 5
+moveplayer:
+	invoke PlayerMove
+done:
+	ret												;; Do not delete this line!!!
+UpdatePlayer ENDP
+
+
+PlayerMove PROC USES ecx edx
+	lea ecx, OFFSET player
+	invoke CheckBounds, ecx, 0, 0
+	mov edx, (GAMEOBJECT PTR[ecx]).velX
+	add (GAMEOBJECT PTR[ecx]).posX, edx
+	mov edx, (GAMEOBJECT PTR[ecx]).velY
+	add (GAMEOBJECT PTR[ecx]).posY, edx
+done:
+	ret
+PlayerMove ENDP
+
+
+
+;;;;;;;;;;;;;   ENEMY FUNCTIONS 
+CreateEnemies PROC USES ecx edi edx
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	push ecx
+	push edx
+	push edi
+	invoke nrandom, 590
+	pop edi
+	pop edx
+	pop ecx
+	add eax, 25
+	mov (GAMEOBJECT PTR[ecx]).posX, eax
+	push ecx
+	push edx
+	push edi
+	invoke nrandom, 430
+	pop edi
+	pop edx
+	pop ecx
+	add eax, 25
+	mov (GAMEOBJECT PTR[ecx]).posY, eax
+	invoke BasicBlit, (GAMEOBJECT PTR[ecx]).bmap, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
 	ret
 CreateEnemies ENDP
 
-ClearScreen PROC USES ebx
-	mov ebx, ScreenBitsPtr
-	mov eax, 0
-	jmp cond
-mainloop:
-	mov (BYTE PTR[ebx]), 000h
-	inc ebx
-	inc eax
-cond:
-	cmp eax, 307200
-	jl mainloop
-exit:
-	ret
-ClearScreen ENDP
 
-CheckEnemyCollision PROC USES ecx ebx
-	lea ebx, player
-checkenemy1:
-	lea ecx, enemy1
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
-	cmp eax, 0
-	jne reduce_lives
-checkenemy2:
-	lea ecx, enemy2
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
-	cmp eax, 0
-	jne reduce_lives
-checkenemy3:
-	lea ecx, enemy3
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, OFFSET plankton
-	cmp eax, 0
-	je done
-reduce_lives:
-	sub (GAMEOBJECT PTR[ebx]).lives, 1
+UpdateEnemies PROC USES ecx edi edx
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	cmp (GAMEOBJECT PTR[ecx]).lives, 0
+	je deadenemy
+	invoke Enemymove, ecx
+	jmp inc_
+deadenemy:
+	invoke DeadEnemymove, ecx
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
 done:
 	ret
-CheckEnemyCollision ENDP
+UpdateEnemies ENDP
+
+
+Enemymove PROC USES ecx edx obj:DWORD
+	mov ecx, obj
+	invoke CheckBounds, ecx, 1, 1
+	mov edx, (GAMEOBJECT PTR[ecx]).velX
+	add (GAMEOBJECT PTR[ecx]).posX, edx
+	mov edx, (GAMEOBJECT PTR[ecx]).velY
+	add (GAMEOBJECT PTR[ecx]).posY, edx
+done:
+	ret
+Enemymove ENDP
+
+
+DeadEnemymove PROC obj:DWORD
+	mov ecx, obj
+	cmp (GAMEOBJECT PTR[ecx]).posY, 420
+	jge done
+dec_y:
+	sub (GAMEOBJECT PTR[ecx]).posY, 1
+done:
+	ret
+DeadEnemymove ENDP
+
+
+PlayerEnemyCollision PROC USES ecx ebx edx edi
+	lea ebx, player
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, (GAMEOBJECT PTR[ebx]).bmap, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).bmap
+	cmp eax, 0
+	jne reduce_lives
+	jmp inc_
+reduce_lives:
+	sub (GAMEOBJECT PTR[ebx]).lives, 1
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+PlayerEnemyCollision ENDP
+
+
+
+;;;;;;;;;;;;;   MISSILE FUNCTIONS 
+ShootMissile PROC
+ShootMissile ENDP
+MissileEnemyCollision PROC USES ecx ebx edx edi
+	lea ebx, missile
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, (GAMEOBJECT PTR[ebx]).bmap, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).bmap
+	cmp eax, 0
+	jne reduce_lives
+	jmp inc_
+reduce_lives:
+	mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET skeleton
+	sub (GAMEOBJECT PTR[ecx]).lives, 1
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+done:
+	ret
+MissileEnemyCollision ENDP
+
+	; mov ebx, OFFSET MouseStatus
+	; mov edx, (MouseInfo PTR[ebx]).buttons
+	; mov eax, (MouseInfo PTR[ebx]).horiz
+	; mov esi, (MouseInfo PTR[ebx]).vert
+	; cmp edx, MK_LBUTTON
+	
+
+;;;;;;;;;;;;;   FOOD FUNCTIONS 
+OrigFood PROC USES edx
+	lea edx, food
+	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
+	ret
+OrigFood ENDP
+
 
 PlayerAte PROC USES ebx esi
 	lea ebx, player
@@ -334,6 +438,29 @@ done:
 	ret
 PlayerAte ENDP
 
+
+CreateFood PROC USES edx ecx
+	lea edx, food
+	push ecx
+	push edx
+	invoke nrandom, 590
+	pop edx
+	pop ecx
+	add eax, 24
+	mov (GAMEOBJECT PTR[edx]).posX, eax
+	push ecx
+	push edx
+	invoke nrandom, 430
+	pop edx
+	pop ecx
+	add eax, 20
+	mov (GAMEOBJECT PTR[edx]).posY, eax
+	ret
+CreateFood ENDP
+
+
+
+;;;;;;;;;;;;;   SCREEN FUNCTIONS 
 StatusBoard PROC USES ebx
 	lea ebx, player
 score:
@@ -357,36 +484,36 @@ foodpoints:
 	call wsprintf
 	add esp, 12
 	invoke DrawStr, offset outFoodStr, 10, 10, 0ffh
+missiles:
+	push (GAMEOBJECT PTR[ebx]).missiles
+	push offset fmtMissilesStr
+	push offset outMissilesStr
+	call wsprintf
+	add esp, 12
+	invoke DrawStr, offset outMissilesStr, 30, 10, 0ffh
 done:
 	ret
 StatusBoard ENDP
 
-OrigFood PROC USES edx
-	lea edx, food
-	invoke BasicBlit, OFFSET patty, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
-	ret
-OrigFood ENDP
 
-CreateFood PROC USES edx ecx
-	lea edx, food
-	push ecx
-	push edx
-	invoke nrandom, 590
-	pop edx
-	pop ecx
-	add eax, 24
-	mov (GAMEOBJECT PTR[edx]).posX, eax
-	push ecx
-	push edx
-	invoke nrandom, 430
-	pop edx
-	pop ecx
-	add eax, 20
-	mov (GAMEOBJECT PTR[edx]).posY, eax
-	; invoke BasicBlit, OFFSET patty, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
+ClearScreen PROC USES ebx
+	mov ebx, ScreenBitsPtr
+	mov eax, 0
+	jmp cond
+mainloop:
+	mov (BYTE PTR[ebx]), 000h
+	inc ebx
+	inc eax
+cond:
+	cmp eax, 307200
+	jl mainloop
+exit:
 	ret
-CreateFood ENDP
+ClearScreen ENDP
 
+
+
+;;;;;;;;;;;;;   MAIN FUNCTIONS 
 GameInit PROC
 	invoke OrigFood
 	invoke CreateShop
@@ -399,12 +526,13 @@ GameInit PROC
 GameInit ENDP
 
 
+
 GamePlay PROC uses ebx
 	invoke ClearScreen
 	invoke OrigFood
 	invoke CreateShop
-	invoke CreatePlayer
-	invoke CreateEnemies
+	;invoke CreatePlayer
+	;invoke CreateEnemies
 	invoke StatusBoard
 player_alive:
 	lea ebx, player
@@ -412,12 +540,12 @@ player_alive:
 	je game_over
 move:
 	add (GAMEOBJECT PTR[ebx]).score, 1
-	invoke Playermove
-	invoke Enemymove
+	invoke UpdatePlayer
+	invoke UpdateEnemies
 	invoke Shopping
 	invoke PlayerAte
 keep_playing:
-	invoke CheckEnemyCollision
+	invoke PlayerEnemyCollision
 	jmp done
 game_over:
 	invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
