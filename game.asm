@@ -29,13 +29,10 @@ includelib \masm32\lib\masm32.lib
 .DATA
 
 GAMEOBJECT STRUCT
-	posX DWORD ?
-	posY DWORD ?
-	velX DWORD ?
-	velY DWORD ?
-	dstX DWORD ?
-	dstY DWORD ?
-	missiles DWORD ?
+	posX FXPT ?
+	posY FXPT ?
+	velX FXPT ?
+	velY FXPT ?
 	angle FXPT ?
 	lives DWORD ?
 	score DWORD ?
@@ -44,26 +41,23 @@ GAMEOBJECT STRUCT
 GAMEOBJECT ENDS
 
 
-food GAMEOBJECT<100, 150, 0, 0, 0, 0, 0, 0, 0, 0, 0, OFFSET patty>
-player GAMEOBJECT<500, 80, 0, 0, 0, 0, 1, 0, 3, 0, 0, OFFSET spongebob>
-enemies GAMEOBJECT 5 DUP (<400, 250, 1, -1, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>)
+food GAMEOBJECT<6553600, 9830400, 0, 0, 0, 0, 0, 0, OFFSET patty>
+player GAMEOBJECT<33554432, 5242880, 0, 0, 0, 3, 0, 0, OFFSET spongebob>
+enemies GAMEOBJECT 3 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET plankton>)
 ; enemy2 GAMEOBJECT<500, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
 ; enemy3 GAMEOBJECT<300, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
-shop GAMEOBJECT<240, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
-rocket GAMEOBJECT<500, 300, 0, 0, 502, 304, 0, 0, 0, 0, 0, OFFSET missile>
+shop GAMEOBJECT<15728640, 3276800, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
+;rocket GAMEOBJECT<500, 300, 0, 0, 502, 304, 0, 0, 0, 0, 0, OFFSET missile>
 GameOverStr BYTE "Game Over", 0
 fmtScoreStr BYTE "Score: %d", 0
 fmtFoodStr BYTE "Food Points: %d", 0
 fmtLivesStr BYTE "Lives: %d", 0
-fmtMissilesStr BYTE "Missiles: %d", 0
 outScoreStr BYTE 40 DUP(0)
 outFoodStr BYTE 40 DUP(0)
 outLivesStr BYTE 40 DUP(0)
-outMissilesStr BYTE 40 DUP(0)
-SelectStr BYTE "Press L to purchase 1 life or M to purchase 1 missile", 0
+SelectStr BYTE "Press L to purchase 1 life", 0
 BrokeStr BYTE "You're broke, You need at least 10 patties to buy anything", 0
 
-missile_mission DWORD 0
 
 .CODE
 CheckIntersect PROC USES ebx ecx edx oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
@@ -145,17 +139,21 @@ exit:
 CheckIntersect ENDP
 
 
-CheckBounds PROC USES ecx edx edi esi newvelx:DWORD , newvely:DWORD , myobj:DWORD
+CheckBounds PROC USES ecx edx edi esi newvelx:FXPT , newvely:FXPT , myobj:DWORD
 	LOCAL xpos:DWORD, ypos:DWORD, xvel:DWORD, yvel:DWORD
 
 	mov ecx, myobj
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
+	sar edx, 16
 	mov xpos, edx
 	mov edx, (GAMEOBJECT PTR[ecx]).posY
+	sar edx, 16
 	mov ypos, edx
 	mov edx, (GAMEOBJECT PTR[ecx]).velX
+	sar edx, 16
 	mov xvel, edx
 	mov edx, (GAMEOBJECT PTR[ecx]).velY
+	sar edx, 16
 	mov yvel, edx
 	mov edi, newvelx
 	mov esi, newvely
@@ -192,36 +190,50 @@ CheckBounds ENDP
 
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 
-CreateShop PROC USES esi
+CreateShop PROC USES esi ebx
+	LOCAL x:DWORD, y:DWORD
 	lea esi, shop
-	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY
+	mov ebx, (GAMEOBJECT PTR[esi]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[esi]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
 	ret
 CreateShop ENDP
 
 
-Shopping PROC USES ebx esi
+Shopping PROC USES ebx esi edx
+	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	lea ebx, player
 	lea esi, shop
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY, OFFSET krustykrab
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	sar edx, 16
+	mov x1, edx
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	sar edx, 16
+	mov y1, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posX
+	sar edx, 16
+	mov x2, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posY
+	sar edx, 16
+	mov y2, edx
+	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
 	cmp eax, 0
 	je done
-	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 10
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5
 	jl broke
 shopnow:
 	invoke DrawStr, offset SelectStr, 180, 200, 0ffh
 	mov ecx, KeyPress
 	cmp ecx, VK_L
 	je buy_life
-	cmp ecx, VK_M
-	je buy_missile
 	jmp done
 buy_life:
 	add (GAMEOBJECT PTR[ebx]).lives, 1
-	sub (GAMEOBJECT PTR[ebx]).foodpoints, 10
-	jmp done
-buy_missile:
-	add (GAMEOBJECT PTR[ebx]).missiles, 1
-	sub (GAMEOBJECT PTR[ebx]).foodpoints, 10
+	sub (GAMEOBJECT PTR[ebx]).foodpoints, 5
 	jmp done
 broke:
 	invoke DrawStr, offset BrokeStr, 180, 200, 0ffh
@@ -231,9 +243,16 @@ Shopping ENDP
 
 
 ;;;;;;;;;;;;;   PLAYER FUNCTIONS
-CreatePlayer PROC USES ebx
+CreatePlayer PROC USES ebx edx
+	LOCAL x:DWORD, y:DWORD
 	lea ebx, player
-	invoke BasicBlit, (GAMEOBJECT PTR[ebx]).bmap, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	sar edx, 16
+	mov x, edx
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	sar edx, 16
+	mov y, edx
+	invoke BasicBlit, (GAMEOBJECT PTR[ebx]).bmap, x, y
 	ret
 CreatePlayer ENDP
 
@@ -241,17 +260,17 @@ PlayerAppear PROC USES edx
 	lea edx, player
 	push ecx
 	push edx
-	invoke nrandom, 590
+	invoke nrandom, 38666240
 	pop edx
 	pop ecx
-	add eax, 24
+	add eax, 1572864
 	mov (GAMEOBJECT PTR[edx]).posX, eax
 	push ecx
 	push edx
-	invoke nrandom, 430
+	invoke nrandom, 28180480
 	pop edx
 	pop ecx
-	add eax, 20
+	add eax, 1310720
 	mov (GAMEOBJECT PTR[edx]).posY, eax
 	ret
 PlayerAppear ENDP
@@ -270,16 +289,16 @@ keyboard:
 	je right
 	jmp done
 up:
-	mov (GAMEOBJECT PTR[ecx]).velY, -5
+	mov (GAMEOBJECT PTR[ecx]).velY, -327680
 	jmp moveplayer
 down:
-	mov (GAMEOBJECT PTR[ecx]).velY, 5
+	mov (GAMEOBJECT PTR[ecx]).velY, 327680
 	jmp moveplayer
 left:
-	mov (GAMEOBJECT PTR[ecx]).velX, -5
+	mov (GAMEOBJECT PTR[ecx]).velX, -327680
 	jmp moveplayer
 right:
-	mov (GAMEOBJECT PTR[ecx]).velX, 5
+	mov (GAMEOBJECT PTR[ecx]).velX, 327680
 moveplayer:
 	invoke PlayerMove, ebx
 done:
@@ -312,12 +331,19 @@ PlayerMove ENDP
 
 
 ;;;;;;;;;;;;;   ENEMY FUNCTIONS 
-InitEnemies PROC USES ecx edi edx
+InitEnemies PROC USES ecx edi edx ebx
+	LOCAL x:DWORD, y:DWORD
 	lea ecx, enemies
 	mov edi, 0
 	mov edx, TYPE enemies
 mainloop:
-	invoke BasicBlit, (GAMEOBJECT PTR[ecx]).bmap, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY
+	mov ebx, (GAMEOBJECT PTR[ecx]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[ecx]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[ecx]).bmap, x, y
 inc_:
 	inc edi
 	add ecx, edx
@@ -336,20 +362,20 @@ mainloop:
 	push ecx
 	push edx
 	push edi
-	invoke nrandom, 590
+	invoke nrandom, 38666240
 	pop edi
 	pop edx
 	pop ecx
-	add eax, 25
+	add eax, 1638400
 	mov (GAMEOBJECT PTR[ecx]).posX, eax
 	push ecx
 	push edx
 	push edi
-	invoke nrandom, 430
+	invoke nrandom, 28180480
 	pop edi
 	pop edx
 	pop ecx
-	add eax, 25
+	add eax, 1638400
 	mov (GAMEOBJECT PTR[ecx]).posY, eax
 inc_:
 	inc edi
@@ -386,7 +412,7 @@ UpdateEnemies ENDP
 
 Enemymove PROC USES ebx ecx edx myobj:DWORD
 	mov ecx, myobj
-	mov ebx, 1
+	mov ebx, 65536
 	invoke CheckBounds, ebx, ebx, ecx
 	mov edx, (GAMEOBJECT PTR[ecx]).velX
 	add (GAMEOBJECT PTR[ecx]).posX, edx
@@ -397,24 +423,41 @@ done:
 Enemymove ENDP
 
 
-DeadEnemymove PROC USES ecx myobj:DWORD
+DeadEnemymove PROC USES ecx edx myobj:DWORD
+	LOCAL y:DWORD
 	mov ecx, myobj
-	cmp (GAMEOBJECT PTR[ecx]).posY, 420
+	mov edx, (GAMEOBJECT PTR[ecx]).posY
+	sar edx, 16
+	mov y, edx
+	cmp y, 420
 	jge done
 dec_y:
-	sub (GAMEOBJECT PTR[ecx]).posY, 1
+	sub (GAMEOBJECT PTR[ecx]).posY, 65536
 done:
 	ret
 DeadEnemymove ENDP
 
 
-PlayerEnemyCollision PROC USES ecx ebx edx edi
+PlayerEnemyCollision PROC USES ecx ebx edx edi esi
+	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	lea ebx, player
 	lea ecx, enemies
+	mov esi, (GAMEOBJECT PTR[ebx]).posX
+	sar esi, 16
+	mov x1, esi
+	mov esi, (GAMEOBJECT PTR[ebx]).posY
+	sar esi, 16
+	mov y1, esi
 	mov edi, 0
 	mov edx, TYPE enemies
 mainloop:
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, (GAMEOBJECT PTR[ebx]).bmap, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).bmap
+	mov esi, (GAMEOBJECT PTR[ecx]).posX
+	sar esi, 16
+	mov x2, esi
+	mov esi, (GAMEOBJECT PTR[ecx]).posY
+	sar esi, 16
+	mov y2, esi
+	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[ecx]).bmap
 	cmp eax, 0
 	jne reduce_lives
 	jmp inc_
@@ -433,145 +476,39 @@ PlayerEnemyCollision ENDP
 
 
 
-;;;;;;;;;;;;;   MISSILE FUNCTIONS 
-ShootMissile PROC USES ecx ebx edx esi edi
-	lea ecx, player
-	lea edi, rocket
-	mov ebx, OFFSET MouseStatus
-	mov edx, (MouseInfo PTR[ebx]).buttons
-	cmp edx, MK_LBUTTON
-	jne done
-	cmp (GAMEOBJECT PTR[ecx]).missiles, 1
-	jl no_missiles
-	mov eax, (GAMEOBJECT PTR[ecx]).posX
-	mov esi, (GAMEOBJECT PTR[ecx]).posY
-	mov (GAMEOBJECT PTR[edi]).posX, eax
-	mov (GAMEOBJECT PTR[edi]).posY, esi
-	mov eax, (MouseInfo PTR[ebx]).horiz
-	mov esi, (MouseInfo PTR[ebx]).vert
-	mov (GAMEOBJECT PTR[edi]).dstX, eax
-	mov (GAMEOBJECT PTR[edi]).dstY, esi
-reduce_missiles:
-	sub (GAMEOBJECT PTR[ecx]).missiles, 1
-	mov missile_mission, 0
-no_missiles:
-	jmp done
-done:
-	ret
-ShootMissile ENDP
-
-MissileEnemyCollision PROC USES ecx ebx edx edi
-	lea ebx, rocket
-	lea ecx, enemies
-	mov edi, 0
-	mov edx, TYPE enemies
-mainloop:
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, (GAMEOBJECT PTR[ebx]).bmap, (GAMEOBJECT PTR[ecx]).posX, (GAMEOBJECT PTR[ecx]).posY, (GAMEOBJECT PTR[ecx]).bmap
-	cmp eax, 0
-	jne reduce_lives
-	jmp inc_
-reduce_lives:
-	;mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET skeleton
-	sub (GAMEOBJECT PTR[ecx]).lives, 1
-inc_:
-	inc edi
-	add ecx, edx
-cond:
-	cmp edi, LENGTHOF enemies
-	jl mainloop
-done:
-	ret
-MissileEnemyCollision ENDP
-
-MissileMove PROC USES ebx ecx edi esi edx
-	;; Feel free to use local variables...declare them here
-	;; For example:
-	LOCAL delta_x:SDWORD, delta_y:SDWORD
-	;; Place your code here
-
-;;initializes delta_x,delta_y,inc_x,inc_y,error,two,curr_x in edi, and curr_y in esi
-	lea edi, rocket
-	cmp missile_mission, 0
-	jne drop
-initialize:
-	mov ebx, (GAMEOBJECT PTR[edi]).dstX
-	mov ecx, (GAMEOBJECT PTR[edi]).dstY
-	sub ebx, (GAMEOBJECT PTR[edi]).posX
-	sub ecx, (GAMEOBJECT PTR[edi]).posY
-	mov delta_x, ebx
-	mov delta_y, ecx
-	cmp delta_x, 0
-	jne x_dir
-	cmp delta_y, 0
-	jne x_dir
-	mov missile_mission, 1
-	jmp drop
-
-x_dir:
-	cmp delta_x, 0
-	jg inc_x
-	cmp delta_x, 0
-	jl dec_x
-	mov (GAMEOBJECT PTR[edi]).velX, 0
-	jmp y_dir
-dec_x:
-	mov (GAMEOBJECT PTR[edi]).velX, -2
-	jmp y_dir
-inc_x:
-	mov (GAMEOBJECT PTR[edi]).velX, 2
-
-y_dir:
-	cmp delta_y, 0
-	jg inc_y
-	cmp delta_y, 0
-	jl dec_y
-	mov (GAMEOBJECT PTR[edi]).velY, 0
-	jmp move
-dec_y:
-	mov (GAMEOBJECT PTR[edi]).velY, -2
-	jmp move
-inc_y:
-	mov (GAMEOBJECT PTR[edi]).velY, 2
-
-move:
-	mov ebx, (GAMEOBJECT PTR[edi]).posX
-	mov edx, (GAMEOBJECT PTR[edi]).posY
-	mov ebx, (GAMEOBJECT PTR[edi]).velX
-	mov edx, (GAMEOBJECT PTR[edi]).velY
-	add (GAMEOBJECT PTR[edi]).posX, ebx
-	add (GAMEOBJECT PTR[edi]).posY, edx
-	jmp done
-drop:
-	mov ebx, (GAMEOBJECT PTR[edi]).posY
-	cmp (GAMEOBJECT PTR[edi]).posY, 420
-	jge done
-	add (GAMEOBJECT PTR[edi]).posY, 40
-	
-done:
-	;invoke BasicBlit, (GAMEOBJECT PTR[edi]).bmap, (GAMEOBJECT PTR[edi]).posX, (GAMEOBJECT PTR[edi]).posY
-	ret        													;;  Don't delete this line...you need it
-MissileMove ENDP
-
-ShowMissile PROC
-	lea edx, rocket
-	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
-	ret
-done:
-	ret
-ShowMissile ENDP
 
 ;;;;;;;;;;;;;   FOOD FUNCTIONS 
 OrigFood PROC USES edx
+	LOCAL x:DWORD, y:DWORD
 	lea edx, food
-	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, (GAMEOBJECT PTR[edx]).posX, (GAMEOBJECT PTR[edx]).posY
+	mov ebx, (GAMEOBJECT PTR[edx]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[edx]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, x, y
 	ret
 OrigFood ENDP
 
 
 PlayerAte PROC USES ebx esi
+	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	lea ebx, player
 	lea esi, food
-	invoke CheckIntersect, (GAMEOBJECT PTR[ebx]).posX, (GAMEOBJECT PTR[ebx]).posY, OFFSET spongebob, (GAMEOBJECT PTR[esi]).posX, (GAMEOBJECT PTR[esi]).posY, OFFSET patty
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	sar edx, 16
+	mov x1, edx
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	sar edx, 16
+	mov y1, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posX
+	sar edx, 16
+	mov x2, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posY
+	sar edx, 16
+	mov y2, edx
+	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
 	cmp eax, 0
 	je done
 add_foodpoints:
@@ -587,17 +524,17 @@ CreateFood PROC USES edx ecx
 	lea edx, food
 	push ecx
 	push edx
-	invoke nrandom, 590
+	invoke nrandom, 38666240
 	pop edx
 	pop ecx
-	add eax, 24
+	add eax, 1638400
 	mov (GAMEOBJECT PTR[edx]).posX, eax
 	push ecx
 	push edx
-	invoke nrandom, 430
+	invoke nrandom, 28180480
 	pop edx
 	pop ecx
-	add eax, 20
+	add eax, 1638400
 	mov (GAMEOBJECT PTR[edx]).posY, eax
 	ret
 CreateFood ENDP
@@ -605,10 +542,12 @@ CreateFood ENDP
 
 
 ;;;;;;;;;;;;;   SCREEN FUNCTIONS 
-StatusBoard PROC USES ebx
+StatusBoard PROC USES ebx ecx
 	lea ebx, player
 score:
-	push (GAMEOBJECT PTR[ebx]).score
+	mov ecx, (GAMEOBJECT PTR[ebx]).score
+	sar ecx, 16
+	push ecx
 	push offset fmtScoreStr
 	push offset outScoreStr
 	call wsprintf
@@ -628,13 +567,6 @@ foodpoints:
 	call wsprintf
 	add esp, 12
 	invoke DrawStr, offset outFoodStr, 10, 10, 0ffh
-missiles:
-	push (GAMEOBJECT PTR[ebx]).missiles
-	push offset fmtMissilesStr
-	push offset outMissilesStr
-	call wsprintf
-	add esp, 12
-	invoke DrawStr, offset outMissilesStr, 150, 10, 0ffh
 done:
 	ret
 StatusBoard ENDP
@@ -664,7 +596,6 @@ GameInit PROC
 	invoke CreatePlayer
 	invoke CreateEnemies
 	invoke StatusBoard
-	invoke ShowMissile
 	rdtsc
 	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
@@ -679,21 +610,18 @@ GamePlay PROC uses ebx
 	invoke CreatePlayer
 	invoke InitEnemies
 	invoke StatusBoard
-	invoke ShowMissile
 player_alive:
 	lea ebx, player
 	cmp (GAMEOBJECT PTR[ebx]).lives, 0
 	je game_over
 move:
-	add (GAMEOBJECT PTR[ebx]).score, 1
+	add (GAMEOBJECT PTR[ebx]).score, 8192
 	invoke UpdatePlayer
 	invoke UpdateEnemies
 	invoke Shopping
 	invoke PlayerAte
 keep_playing:
 	invoke PlayerEnemyCollision
-	invoke ShootMissile
-	invoke MissileMove
 	jmp done
 game_over:
 	invoke DrawStr, offset GameOverStr, 320, 240, 0ffh

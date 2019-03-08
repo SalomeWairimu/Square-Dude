@@ -59,7 +59,7 @@ CreatePlayer PROTO
 PlayerAppear PROTO
 Shopping PROTO
 CreateShop PROTO
-CheckBounds PROTO newvelx:DWORD , newvely:DWORD , myobj:DWORD
+CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
 CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 
 
