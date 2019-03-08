@@ -34,6 +34,8 @@ EXTERNDEF spongebob:EECS205BITMAP
 EXTERNDEF krustykrab:EECS205BITMAP
 EXTERNDEF plankton:EECS205BITMAP
 EXTERNDEF patty:EECS205BITMAP
+EXTERNDEF missile:EECS205BITMAP
+EXTERNDEF skeleton:EECS205BITMAP
 
 ;; User Defined Functions
 GameInit PROTO
@@ -44,17 +46,20 @@ CreateFood PROTO
 OrigFood PROTO
 MissileEnemyCollision PROTO
 ShootMissile PROTO
+MissileMove PROTO
 PlayerEnemyCollision PROTO
 DeadEnemymove PROTO obj:DWORD
 Enemymove PROTO obj:DWORD
 UpdateEnemies PROTO
 CreateEnemies PROTO
-PlayerMove PROTO
+InitEnemies PROTO
+PlayerMove PROTO mykey:DWORD
 UpdatePlayer PROTO
 CreatePlayer PROTO
+PlayerAppear PROTO
 Shopping PROTO
 CreateShop PROTO
-CheckBounds PROTO
+CheckBounds PROTO newvelx:DWORD , newvely:DWORD , myobj:DWORD
 CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 
 
