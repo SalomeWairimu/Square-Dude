@@ -23,10 +23,16 @@ include \masm32\include\user32.inc
 includelib \masm32\lib\user32.lib
 include \masm32\include\masm32.inc
 includelib \masm32\lib\masm32.lib
+include \masm32\include\windows.inc
+include \masm32\include\winmm.inc
+includelib \masm32\lib\winmm.lib
 
 
 	
 .DATA
+
+game_state = 0
+currlevel = 1
 
 GAMEOBJECT STRUCT
 	posX FXPT ?
@@ -48,7 +54,7 @@ enemies GAMEOBJECT 3 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET
 ; enemy3 GAMEOBJECT<300, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
 shop GAMEOBJECT<15728640, 3276800, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
 ;rocket GAMEOBJECT<500, 300, 0, 0, 502, 304, 0, 0, 0, 0, 0, OFFSET missile>
-GameOverStr BYTE "Game Over", 0
+background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET background>
 fmtScoreStr BYTE "Score: %d", 0
 fmtFoodStr BYTE "Food Points: %d", 0
 fmtLivesStr BYTE "Lives: %d", 0
@@ -56,8 +62,27 @@ outScoreStr BYTE 40 DUP(0)
 outFoodStr BYTE 40 DUP(0)
 outLivesStr BYTE 40 DUP(0)
 SelectStr BYTE "Press L to purchase 1 life", 0
-BrokeStr BYTE "You're broke, You need at least 10 patties to buy anything", 0
+BrokeStr BYTE "You're broke, You need at least 5 patties to buy a life", 0
 
+StartStr1 BYTE "Hi, welcome to Bikini Bottom", 0
+StartStr2 BYTE "To move to the next level, collect 10 krabby patties", 0
+StartStr3 BYTE "Beware, plankton will try to kill you", 0
+StartStr4 BYTE "You can trade in 5 patties for a life by pressing L at the Krusty Krab", 0
+StartStr5 BYTE "Game rules are: ", 0
+StartStr6 BYTE "To start press ENTER", 0
+StartStr7 BYTE "To move press the respective ARROW KEYS", 0
+StartStr8 BYTE "To pause press SPACE BAR", 0
+StartStr9 BYTE "To Quit press Q", 0
+StartStr10 BYTE "Enjoy", 0
+
+NextLevel1 BYTE "Congratulations! You advanced to the next level", 0
+NextLevel2 BYTE "Press Enter to proceed", 0
+NextLevel3 BYTE "Press Q to quit", 0
+
+PausedStr BYTE "Game is paused, press SPACE BAR to play", 0
+
+GameOverStr BYTE "Game Over", 0
+GameOverStr2 BYTE "Press Enter to restart", 0
 
 .CODE
 CheckIntersect PROC USES ebx ecx edx oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
@@ -188,6 +213,106 @@ done:
 	ret
 CheckBounds ENDP
 
+HandleInput PROC uses ebx
+	mov ebx, KeyPress
+	cmp game_state, 0
+	je startpage 
+	cmp game_state, 1
+	je playing
+	cmp game_state, 2
+	je paused
+	cmp game_state, 3
+	je overpage
+	cmp game_state, 4
+	je switchlevel
+	jmp done
+
+startpage:
+	invoke ShowStartStr
+	cmp ebx, VK_RETURN
+	jne done
+	game_state = 1
+	jmp done
+
+playing:
+	cmp ebx, VK_SPACE
+	je pause_game
+	cmp ebx, VK_Q
+	jne player_moving
+	game_state = 3
+	jmp done
+player_moving:
+	invoke UpdatePlayer
+	jmp done
+pause_game:
+	game_state = 2
+	jmp done
+
+paused:
+	invoke ShowPausedStr
+	cmp ebx, VK_SPACE
+	jne done
+	game_state = 1
+	jmp done
+
+overpage:
+	invoke ShowOverStr
+	cmp ebx, VK_RETURN
+	jne done
+	game_state = 1
+	jmp done
+
+switchlevel:
+	invoke ShowLevelStr
+	cmp ebx, VK_RETURN
+	je newlevel
+	cmp ebx, VK_Q
+	jne done
+	game_state = 3
+	jmp done
+newlevel:
+	invoke LevelUp
+	game_state = 1
+
+
+done:
+	ret
+HandleInput endp
+
+
+;;;;;;;;;;;;;   GameState Pages
+
+ShowStartStr PROC
+	invoke DrawStr, offset StartStr1, 200, 100, 0ffh
+	invoke DrawStr, offset StartStr2, 200, 110, 0ffh
+	invoke DrawStr, offset StartStr3, 200, 120, 0ffh
+	invoke DrawStr, offset StartStr4, 200, 130, 0ffh
+	invoke DrawStr, offset StartStr5, 200, 140, 0ffh
+	invoke DrawStr, offset StartStr6, 200, 150, 0ffh
+	invoke DrawStr, offset StartStr7, 200, 160, 0ffh
+	invoke DrawStr, offset StartStr8, 200, 170, 0ffh
+	invoke DrawStr, offset StartStr9, 200, 180, 0ffh
+	invoke DrawStr, offset StartStr10, 200, 190, 0ffh
+	ret
+ShowStartStr ENDP
+
+ShowPausedStr PROC
+	invoke DrawStr, offset PausedStr, 200, 100, 0ffh
+	ret
+ShowPausedStr ENDP
+
+ShowOverStr PROC
+	invoke DrawStr, offset GameOverStr, 200, 100, 0ffh
+	invoke DrawStr, offset GameOverStr2, 200, 110, 0ffh
+	ret
+ShowOverStr ENDP
+
+ShowLevelStr PROC
+	invoke DrawStr, offset NextLevel1, 200, 100, 0ffh
+	invoke DrawStr, offset NextLevel2, 200, 110, 0ffh
+	invoke DrawStr, offset NextLevel3, 200, 120, 0ffh
+	ret
+ShowLevelStr ENDP
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 
 CreateShop PROC USES esi ebx
@@ -296,9 +421,11 @@ down:
 	jmp moveplayer
 left:
 	mov (GAMEOBJECT PTR[ecx]).velX, -327680
+	mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebobInvert
 	jmp moveplayer
 right:
 	mov (GAMEOBJECT PTR[ecx]).velX, 327680
+	mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebob
 moveplayer:
 	invoke PlayerMove, ebx
 done:
@@ -587,10 +714,24 @@ exit:
 	ret
 ClearScreen ENDP
 
+AddBackground PROC USES esi ebx
+	LOCAL x:DWORD, y:DWORD
+	lea esi, background
+	mov ebx, (GAMEOBJECT PTR[esi]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[esi]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
+	ret
+AddBackground ENDP
 
 
 ;;;;;;;;;;;;;   MAIN FUNCTIONS 
 GameInit PROC
+	invoke ClearScreen
+	invoke AddBackground
 	invoke OrigFood
 	invoke CreateShop
 	invoke CreatePlayer
@@ -605,25 +746,42 @@ GameInit ENDP
 
 GamePlay PROC uses ebx
 	invoke ClearScreen
+	invoke AddBackground
+	invoke HandleInput
+	cmp game_state, 0
+	je done
+	cmp game_state, 3
+	je done
+	cmp game_state, 4
+	je done
+
+player_alive:
+	lea ebx, player
+	cmp (GAMEOBJECT PTR[ebx]).lives, 0
+	je game_over
+
+main:
 	invoke OrigFood
 	invoke CreateShop
 	invoke CreatePlayer
 	invoke InitEnemies
 	invoke StatusBoard
-player_alive:
-	lea ebx, player
-	cmp (GAMEOBJECT PTR[ebx]).lives, 0
-	je game_over
+
+	
+	cmp game_state, 2
+	je done
 move:
 	add (GAMEOBJECT PTR[ebx]).score, 8192
-	invoke UpdatePlayer
+	;invoke UpdatePlayer
 	invoke UpdateEnemies
 	invoke Shopping
 	invoke PlayerAte
 keep_playing:
 	invoke PlayerEnemyCollision
 	jmp done
+
 game_over:
+	mov game_state, 3
 	invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
 
 done:
