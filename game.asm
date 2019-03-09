@@ -50,11 +50,8 @@ GAMEOBJECT ENDS
 food GAMEOBJECT<6553600, 9830400, 0, 0, 0, 0, 0, 0, OFFSET patty>
 player GAMEOBJECT<33554432, 5242880, 0, 0, 0, 3, 0, 0, OFFSET spongebob>
 enemies GAMEOBJECT 3 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET plankton>)
-; enemy2 GAMEOBJECT<500, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
-; enemy3 GAMEOBJECT<300, 250, 0, 0, 0, 0, 1, 0, 0, OFFSET plankton>
 shop GAMEOBJECT<15728640, 3276800, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
-;rocket GAMEOBJECT<500, 300, 0, 0, 502, 304, 0, 0, 0, 0, 0, OFFSET missile>
-background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET background>
+background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET bikinibottom>
 fmtScoreStr BYTE "Score: %d", 0
 fmtFoodStr BYTE "Food Points: %d", 0
 fmtLivesStr BYTE "Lives: %d", 0
@@ -421,11 +418,9 @@ down:
 	jmp moveplayer
 left:
 	mov (GAMEOBJECT PTR[ecx]).velX, -327680
-	mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebobInvert
 	jmp moveplayer
 right:
 	mov (GAMEOBJECT PTR[ecx]).velX, 327680
-	mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebob
 moveplayer:
 	invoke PlayerMove, ebx
 done:
