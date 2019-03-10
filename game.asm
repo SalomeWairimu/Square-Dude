@@ -19,13 +19,14 @@ include game.inc
 
 ;; Has keycodes
 include keys.inc
+include \masm32\include\windows.inc
+include \masm32\include\winmm.inc
+includelib \masm32\lib\winmm.lib
 include \masm32\include\user32.inc
 includelib \masm32\lib\user32.lib
 include \masm32\include\masm32.inc
 includelib \masm32\lib\masm32.lib
-;include \masm32\include\windows.inc
-;include \masm32\include\winmm.inc
-;includelib \masm32\lib\winmm.lib
+
 
 
 	
@@ -33,7 +34,8 @@ includelib \masm32\lib\masm32.lib
 
 game_state DWORD 0
 currlevel DWORD 1
-
+atepatty BYTE "spongebob_laugh.wav", 0
+hitenemy BYTE "spongebob_stinks.wav", 0
 GAMEOBJECT STRUCT
 	posX FXPT ?
 	posY FXPT ?
@@ -591,6 +593,7 @@ mainloop:
 	jne reduce_lives
 	jmp inc_
 reduce_lives:
+	invoke PlaySound, offset hitenemy, 0, SND_FILENAME
 	sub (GAMEOBJECT PTR[ebx]).lives, 1
 	invoke PlayerAppear
 inc_:
@@ -641,6 +644,7 @@ PlayerAte PROC USES ebx esi edx
 	cmp eax, 0
 	je done
 add_foodpoints:
+	invoke PlaySound, offset atepatty, 0,  SND_ASYNC
 	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
 createfood:
 	invoke CreateFood
