@@ -23,16 +23,16 @@ include \masm32\include\user32.inc
 includelib \masm32\lib\user32.lib
 include \masm32\include\masm32.inc
 includelib \masm32\lib\masm32.lib
-include \masm32\include\windows.inc
-include \masm32\include\winmm.inc
-includelib \masm32\lib\winmm.lib
+;include \masm32\include\windows.inc
+;include \masm32\include\winmm.inc
+;includelib \masm32\lib\winmm.lib
 
 
 	
 .DATA
 
-game_state = 0
-currlevel = 1
+game_state DWORD 0
+currlevel DWORD 1
 
 GAMEOBJECT STRUCT
 	posX FXPT ?
@@ -82,6 +82,40 @@ GameOverStr BYTE "Game Over", 0
 GameOverStr2 BYTE "Press Enter to restart", 0
 
 .CODE
+;;;;;;;;;;;;;   GameState Pages
+
+ShowStartStr PROC
+	invoke DrawStr, offset StartStr1, 200, 100, 0ffh
+	invoke DrawStr, offset StartStr2, 200, 110, 0ffh
+	invoke DrawStr, offset StartStr3, 200, 120, 0ffh
+	invoke DrawStr, offset StartStr4, 200, 130, 0ffh
+	invoke DrawStr, offset StartStr5, 200, 140, 0ffh
+	invoke DrawStr, offset StartStr6, 200, 150, 0ffh
+	invoke DrawStr, offset StartStr7, 200, 160, 0ffh
+	invoke DrawStr, offset StartStr8, 200, 170, 0ffh
+	invoke DrawStr, offset StartStr9, 200, 180, 0ffh
+	invoke DrawStr, offset StartStr10, 200, 190, 0ffh
+	ret
+ShowStartStr ENDP
+
+ShowPausedStr PROC
+	invoke DrawStr, offset PausedStr, 200, 100, 0ffh
+	ret
+ShowPausedStr ENDP
+
+ShowOverStr PROC
+	invoke DrawStr, offset GameOverStr, 200, 100, 0ffh
+	invoke DrawStr, offset GameOverStr2, 200, 110, 0ffh
+	ret
+ShowOverStr ENDP
+
+ShowLevelStr PROC
+	invoke DrawStr, offset NextLevel1, 200, 100, 0ffh
+	invoke DrawStr, offset NextLevel2, 200, 110, 0ffh
+	invoke DrawStr, offset NextLevel3, 200, 120, 0ffh
+	ret
+ShowLevelStr ENDP
+
 CheckIntersect PROC USES ebx ecx edx oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 	xor eax, eax
 
@@ -210,8 +244,11 @@ done:
 	ret
 CheckBounds ENDP
 
-HandleInput PROC uses ebx
+HandleInput PROC uses ebx edx
+	LOCAL newstate:DWORD
 	mov ebx, KeyPress
+	mov edx, game_state
+	mov newstate, edx
 	cmp game_state, 0
 	je startpage 
 	cmp game_state, 1
@@ -228,35 +265,35 @@ startpage:
 	invoke ShowStartStr
 	cmp ebx, VK_RETURN
 	jne done
-	game_state = 1
+	mov newstate, 1
 	jmp done
 
 playing:
 	cmp ebx, VK_SPACE
 	je pause_game
 	cmp ebx, VK_Q
-	jne player_moving
-	game_state = 3
+	jne done
+	mov newstate, 3
 	jmp done
-player_moving:
-	invoke UpdatePlayer
-	jmp done
+;player_moving:
+;	invoke UpdatePlayer
+;	jmp done
 pause_game:
-	game_state = 2
+	mov newstate, 2
 	jmp done
 
 paused:
 	invoke ShowPausedStr
 	cmp ebx, VK_SPACE
 	jne done
-	game_state = 1
+	mov newstate, 1
 	jmp done
 
 overpage:
 	invoke ShowOverStr
 	cmp ebx, VK_RETURN
 	jne done
-	game_state = 1
+	mov newstate, 1
 	jmp done
 
 switchlevel:
@@ -265,51 +302,21 @@ switchlevel:
 	je newlevel
 	cmp ebx, VK_Q
 	jne done
-	game_state = 3
+	mov newstate, 3
 	jmp done
 newlevel:
-	invoke LevelUp
-	game_state = 1
+	;invoke LevelUp
+	mov newstate, 1
 
 
 done:
+	mov edx, newstate
+	mov game_state, edx
 	ret
 HandleInput endp
 
 
-;;;;;;;;;;;;;   GameState Pages
 
-ShowStartStr PROC
-	invoke DrawStr, offset StartStr1, 200, 100, 0ffh
-	invoke DrawStr, offset StartStr2, 200, 110, 0ffh
-	invoke DrawStr, offset StartStr3, 200, 120, 0ffh
-	invoke DrawStr, offset StartStr4, 200, 130, 0ffh
-	invoke DrawStr, offset StartStr5, 200, 140, 0ffh
-	invoke DrawStr, offset StartStr6, 200, 150, 0ffh
-	invoke DrawStr, offset StartStr7, 200, 160, 0ffh
-	invoke DrawStr, offset StartStr8, 200, 170, 0ffh
-	invoke DrawStr, offset StartStr9, 200, 180, 0ffh
-	invoke DrawStr, offset StartStr10, 200, 190, 0ffh
-	ret
-ShowStartStr ENDP
-
-ShowPausedStr PROC
-	invoke DrawStr, offset PausedStr, 200, 100, 0ffh
-	ret
-ShowPausedStr ENDP
-
-ShowOverStr PROC
-	invoke DrawStr, offset GameOverStr, 200, 100, 0ffh
-	invoke DrawStr, offset GameOverStr2, 200, 110, 0ffh
-	ret
-ShowOverStr ENDP
-
-ShowLevelStr PROC
-	invoke DrawStr, offset NextLevel1, 200, 100, 0ffh
-	invoke DrawStr, offset NextLevel2, 200, 110, 0ffh
-	invoke DrawStr, offset NextLevel3, 200, 120, 0ffh
-	ret
-ShowLevelStr ENDP
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 
 CreateShop PROC USES esi ebx
@@ -600,7 +607,7 @@ PlayerEnemyCollision ENDP
 
 
 ;;;;;;;;;;;;;   FOOD FUNCTIONS 
-OrigFood PROC USES edx
+OrigFood PROC USES edx ebx
 	LOCAL x:DWORD, y:DWORD
 	lea edx, food
 	mov ebx, (GAMEOBJECT PTR[edx]).posX
@@ -614,7 +621,7 @@ OrigFood PROC USES edx
 OrigFood ENDP
 
 
-PlayerAte PROC USES ebx esi
+PlayerAte PROC USES ebx esi edx
 	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	lea ebx, player
 	lea esi, food
@@ -727,11 +734,12 @@ AddBackground ENDP
 GameInit PROC
 	invoke ClearScreen
 	invoke AddBackground
-	invoke OrigFood
-	invoke CreateShop
-	invoke CreatePlayer
+	invoke HandleInput
+	;invoke OrigFood
+	;invoke CreateShop
+	;invoke CreatePlayer
 	invoke CreateEnemies
-	invoke StatusBoard
+	;invoke StatusBoard
 	rdtsc
 	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
@@ -767,7 +775,7 @@ main:
 	je done
 move:
 	add (GAMEOBJECT PTR[ebx]).score, 8192
-	;invoke UpdatePlayer
+	invoke UpdatePlayer
 	invoke UpdateEnemies
 	invoke Shopping
 	invoke PlayerAte
