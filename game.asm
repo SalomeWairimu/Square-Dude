@@ -296,7 +296,7 @@ overpage:
 	cmp ebx, VK_RETURN
 	jne done
 	invoke ResetGame
-	mov newstate, 1
+	mov newstate, 0
 	jmp done
 
 switchlevel:
@@ -335,6 +335,11 @@ InitShop PROC USES esi ebx
 	ret
 InitShop ENDP
 
+CreateShop PROC USES esi
+	lea esi, shop
+	mov (GAMEOBJECT PTR[esi]).posX, 15728640 
+	mov (GAMEOBJECT PTR[esi]).posY, 3276800
+CreateShop ENDP
 
 Shopping PROC USES ebx esi edx
 	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
@@ -753,10 +758,13 @@ AddBackground ENDP
 
 ;;;;;;;;;;;;;   MAIN FUNCTIONS 
 ResetGame PROC
+	invoke ClearScreen
+	invoke AddBackground
 	invoke SetFoodPos
-	invoke InitShop
+	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
+	mov game_state, 0
 	ret
 ResetGame ENDP
 GameInit PROC
@@ -764,7 +772,7 @@ GameInit PROC
 	invoke AddBackground
 	invoke HandleInput
 	invoke SetFoodPos
-	invoke InitShop
+	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
 	invoke StatusBoard
