@@ -295,6 +295,7 @@ overpage:
 	invoke ShowOverStr
 	cmp ebx, VK_RETURN
 	jne done
+	invoke ResetGame
 	mov newstate, 1
 	jmp done
 
@@ -321,7 +322,7 @@ HandleInput endp
 
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 
-CreateShop PROC USES esi ebx
+InitShop PROC USES esi ebx
 	LOCAL x:DWORD, y:DWORD
 	lea esi, shop
 	mov ebx, (GAMEOBJECT PTR[esi]).posX
@@ -332,7 +333,7 @@ CreateShop PROC USES esi ebx
 	mov y, ebx
 	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
 	ret
-CreateShop ENDP
+InitShop ENDP
 
 
 Shopping PROC USES ebx esi edx
@@ -374,7 +375,7 @@ Shopping ENDP
 
 
 ;;;;;;;;;;;;;   PLAYER FUNCTIONS
-CreatePlayer PROC USES ebx edx
+InitPlayer PROC USES ebx edx
 	LOCAL x:DWORD, y:DWORD
 	lea ebx, player
 	mov edx, (GAMEOBJECT PTR[ebx]).posX
@@ -384,6 +385,22 @@ CreatePlayer PROC USES ebx edx
 	sar edx, 16
 	mov y, edx
 	invoke BasicBlit, (GAMEOBJECT PTR[ebx]).bmap, x, y
+	ret
+InitPlayer ENDP
+
+CreatePlayer PROC USES ecx
+	lea ecx, player
+	push ecx
+	invoke nrandom, 38666240
+	pop ecx
+	add eax, 1638400
+	mov (GAMEOBJECT PTR[ecx]).posX, eax
+	push ecx
+	invoke nrandom, 28180480
+	pop ecx
+	add eax, 1638400
+	mov (GAMEOBJECT PTR[ecx]).posY, eax
+done:
 	ret
 CreatePlayer ENDP
 
@@ -593,7 +610,7 @@ mainloop:
 	jne reduce_lives
 	jmp inc_
 reduce_lives:
-	invoke PlaySound, offset hitenemy, 0, SND_FILENAME
+	;invoke PlaySound, offset hitenemy, 0, SND_FILENAME
 	sub (GAMEOBJECT PTR[ebx]).lives, 1
 	invoke PlayerAppear
 inc_:
@@ -610,7 +627,7 @@ PlayerEnemyCollision ENDP
 
 
 ;;;;;;;;;;;;;   FOOD FUNCTIONS 
-OrigFood PROC USES edx ebx
+InitFood PROC USES edx ebx
 	LOCAL x:DWORD, y:DWORD
 	lea edx, food
 	mov ebx, (GAMEOBJECT PTR[edx]).posX
@@ -621,7 +638,7 @@ OrigFood PROC USES edx ebx
 	mov y, ebx
 	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, x, y
 	ret
-OrigFood ENDP
+InitFood ENDP
 
 
 PlayerAte PROC USES ebx esi edx
@@ -646,14 +663,14 @@ PlayerAte PROC USES ebx esi edx
 add_foodpoints:
 	invoke PlaySound, offset atepatty, 0,  SND_ASYNC
 	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
-createfood:
-	invoke CreateFood
+newfoodpos:
+	invoke SetFoodPos
 done:
 	ret
 PlayerAte ENDP
 
 
-CreateFood PROC USES edx ecx
+SetFoodPos PROC USES edx ecx
 	lea edx, food
 	push ecx
 	push edx
@@ -670,7 +687,7 @@ CreateFood PROC USES edx ecx
 	add eax, 1638400
 	mov (GAMEOBJECT PTR[edx]).posY, eax
 	ret
-CreateFood ENDP
+SetFoodPos ENDP
 
 
 
@@ -735,15 +752,22 @@ AddBackground ENDP
 
 
 ;;;;;;;;;;;;;   MAIN FUNCTIONS 
+ResetGame PROC
+	invoke SetFoodPos
+	invoke InitShop
+	invoke CreatePlayer
+	invoke CreateEnemies
+	ret
+ResetGame ENDP
 GameInit PROC
 	invoke ClearScreen
 	invoke AddBackground
 	invoke HandleInput
-	;invoke OrigFood
-	;invoke CreateShop
-	;invoke CreatePlayer
+	invoke SetFoodPos
+	invoke InitShop
+	invoke CreatePlayer
 	invoke CreateEnemies
-	;invoke StatusBoard
+	invoke StatusBoard
 	rdtsc
 	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
@@ -768,9 +792,9 @@ player_alive:
 	je game_over
 
 main:
-	invoke OrigFood
-	invoke CreateShop
-	invoke CreatePlayer
+	invoke InitFood
+	invoke InitShop
+	invoke InitPlayer
 	invoke InitEnemies
 	invoke StatusBoard
 

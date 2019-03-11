@@ -37,12 +37,13 @@ EXTERNDEF plankton:EECS205BITMAP
 EXTERNDEF patty:EECS205BITMAP
 
 ;; User Defined Functions
+ResetGame PROTO
 GameInit PROTO
 GamePlay PROTO
 StatusBoard PROTO
 ClearScreen PROTO
-CreateFood PROTO
-OrigFood PROTO
+SetFoodPos PROTO
+InitFood PROTO
 MissileEnemyCollision PROTO
 ShootMissile PROTO
 MissileMove PROTO
