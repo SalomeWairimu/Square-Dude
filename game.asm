@@ -29,7 +29,7 @@ includelib \masm32\lib\masm32.lib
 
 
 
-	
+
 .DATA
 
 game_state DWORD 0
@@ -149,7 +149,7 @@ check_bottom:										;; check if the bottom of one intersects with the top of 
 	mov ecx, (EECS205BITMAP PTR[ebx]).dwHeight		;; ecx contains height of two
 	sar ecx, 1
 	sub eax, ecx									;; eax contains top of two
-	
+
 	cmp edx, eax									;; compare top of two and bottom of one
 	jl okay											;; not intersecting if bottom of one is lesser than top of two
 
@@ -165,7 +165,7 @@ check_right:										;; check if the right of one intersects with the left of t
 	mov ecx, (EECS205BITMAP PTR[ebx]).dwWidth		;; ecx contains width of two
 	sar ecx, 1
 	sub eax, ecx									;; eax contains left of two
-	
+
 	cmp edx, eax									;; compare right of one and left of two
 	jl okay											;; not intersecting if right of one is lesser than the left of two
 
@@ -181,14 +181,14 @@ check_left:											;; check if the left of one intersects with the right of t
 	mov ecx, (EECS205BITMAP PTR[ebx]).dwWidth		;; ecx contains width of two
 	sar ecx, 1
 	add eax, ecx									;; eax contains right of two
-	
+
 	cmp edx, eax									;; compare left of one and right of two
 	jg okay											;; not intersecting if left of one is greater than the right of two
 
 intersecting:
 	mov eax, 1
 	jmp exit
-	
+
 okay:
 	mov eax, 0
 
@@ -252,7 +252,7 @@ HandleInput PROC uses ebx edx
 	mov edx, game_state
 	mov newstate, edx
 	cmp game_state, 0
-	je startpage 
+	je startpage
 	cmp game_state, 1
 	je playing
 	cmp game_state, 2
@@ -295,8 +295,8 @@ overpage:
 	invoke ShowOverStr
 	cmp ebx, VK_RETURN
 	jne done
-	invoke ResetGame
-	mov newstate, 0
+	;invoke ResetGame
+	mov newstate, 1
 	jmp done
 
 switchlevel:
@@ -337,7 +337,7 @@ InitShop ENDP
 
 CreateShop PROC USES esi
 	lea esi, shop
-	mov (GAMEOBJECT PTR[esi]).posX, 15728640 
+	mov (GAMEOBJECT PTR[esi]).posX, 15728640
 	mov (GAMEOBJECT PTR[esi]).posY, 3276800
 CreateShop ENDP
 
@@ -405,6 +405,9 @@ CreatePlayer PROC USES ecx
 	pop ecx
 	add eax, 1638400
 	mov (GAMEOBJECT PTR[ecx]).posY, eax
+  mov (GAMEOBJECT PTR[ecx]).lives, 3
+  mov (GAMEOBJECT PTR[ecx]).foodpoints, 0
+  mov (GAMEOBJECT PTR[ecx]).score, 0
 done:
 	ret
 CreatePlayer ENDP
@@ -483,7 +486,7 @@ PlayerMove ENDP
 
 
 
-;;;;;;;;;;;;;   ENEMY FUNCTIONS 
+;;;;;;;;;;;;;   ENEMY FUNCTIONS
 InitEnemies PROC USES ecx edi edx ebx
 	LOCAL x:DWORD, y:DWORD
 	lea ecx, enemies
@@ -631,7 +634,7 @@ PlayerEnemyCollision ENDP
 
 
 
-;;;;;;;;;;;;;   FOOD FUNCTIONS 
+;;;;;;;;;;;;;   FOOD FUNCTIONS
 InitFood PROC USES edx ebx
 	LOCAL x:DWORD, y:DWORD
 	lea edx, food
@@ -696,7 +699,7 @@ SetFoodPos ENDP
 
 
 
-;;;;;;;;;;;;;   SCREEN FUNCTIONS 
+;;;;;;;;;;;;;   SCREEN FUNCTIONS
 StatusBoard PROC USES ebx ecx
 	lea ebx, player
 score:
@@ -756,7 +759,7 @@ AddBackground PROC USES esi ebx
 AddBackground ENDP
 
 
-;;;;;;;;;;;;;   MAIN FUNCTIONS 
+;;;;;;;;;;;;;   MAIN FUNCTIONS
 ResetGame PROC
 	invoke ClearScreen
 	invoke AddBackground
@@ -770,7 +773,7 @@ ResetGame ENDP
 GameInit PROC
 	invoke ClearScreen
 	invoke AddBackground
-	invoke HandleInput
+	;invoke HandleInput
 	invoke SetFoodPos
 	invoke CreateShop
 	invoke CreatePlayer
@@ -786,7 +789,7 @@ GameInit ENDP
 GamePlay PROC uses ebx
 	invoke ClearScreen
 	invoke AddBackground
-	invoke HandleInput
+	;invoke HandleInput
 	cmp game_state, 0
 	je done
 	cmp game_state, 3
@@ -806,7 +809,7 @@ main:
 	invoke InitEnemies
 	invoke StatusBoard
 
-	
+
 	cmp game_state, 2
 	je done
 move:
