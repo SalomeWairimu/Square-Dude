@@ -87,16 +87,16 @@ GameOverStr2 BYTE "Press Enter to restart", 0
 ;;;;;;;;;;;;;   GameState Pages
 
 ShowStartStr PROC
-	invoke DrawStr, offset StartStr1, 200, 100, 0ffh
-	invoke DrawStr, offset StartStr2, 200, 110, 0ffh
-	invoke DrawStr, offset StartStr3, 200, 120, 0ffh
-	invoke DrawStr, offset StartStr4, 200, 130, 0ffh
-	invoke DrawStr, offset StartStr5, 200, 140, 0ffh
-	invoke DrawStr, offset StartStr6, 200, 150, 0ffh
-	invoke DrawStr, offset StartStr7, 200, 160, 0ffh
-	invoke DrawStr, offset StartStr8, 200, 170, 0ffh
-	invoke DrawStr, offset StartStr9, 200, 180, 0ffh
-	invoke DrawStr, offset StartStr10, 200, 190, 0ffh
+	invoke DrawStr, offset StartStr1, 20, 100, 0ffh
+	invoke DrawStr, offset StartStr2, 20, 110, 0ffh
+	invoke DrawStr, offset StartStr3, 20, 120, 0ffh
+	invoke DrawStr, offset StartStr4, 20, 130, 0ffh
+	invoke DrawStr, offset StartStr5, 20, 140, 0ffh
+	invoke DrawStr, offset StartStr6, 20, 150, 0ffh
+	invoke DrawStr, offset StartStr7, 20, 160, 0ffh
+	invoke DrawStr, offset StartStr8, 20, 170, 0ffh
+	invoke DrawStr, offset StartStr9, 20, 180, 0ffh
+	invoke DrawStr, offset StartStr10, 20, 190, 0ffh
 	ret
 ShowStartStr ENDP
 
@@ -106,15 +106,15 @@ ShowPausedStr PROC
 ShowPausedStr ENDP
 
 ShowOverStr PROC
-	invoke DrawStr, offset GameOverStr, 200, 100, 0ffh
-	invoke DrawStr, offset GameOverStr2, 200, 110, 0ffh
+	invoke DrawStr, offset GameOverStr, 20, 100, 0ffh
+	invoke DrawStr, offset GameOverStr2, 20, 110, 0ffh
 	ret
 ShowOverStr ENDP
 
 ShowLevelStr PROC
-	invoke DrawStr, offset NextLevel1, 200, 100, 0ffh
-	invoke DrawStr, offset NextLevel2, 200, 110, 0ffh
-	invoke DrawStr, offset NextLevel3, 200, 120, 0ffh
+	invoke DrawStr, offset NextLevel1, 20, 100, 0ffh
+	invoke DrawStr, offset NextLevel2, 20, 110, 0ffh
+	invoke DrawStr, offset NextLevel3, 20, 120, 0ffh
 	ret
 ShowLevelStr ENDP
 
@@ -368,7 +368,7 @@ buy_life:
 	sub (GAMEOBJECT PTR[ebx]).foodpoints, 5
 	jmp done
 broke:
-	invoke DrawStr, offset BrokeStr, 180, 200, 0ffh
+	invoke DrawStr, offset BrokeStr,20, 200, 0ffh
 done:
 	ret
 Shopping ENDP
@@ -789,7 +789,7 @@ GamePlay PROC uses ebx
 player_alive:
 	lea ebx, player
 	cmp (GAMEOBJECT PTR[ebx]).lives, 0
-	je game_over
+	je done
 
 main:
 	invoke InitFood
@@ -812,7 +812,7 @@ keep_playing:
 	jmp done
 
 game_over:
-	mov game_state, 3
+	invoke ShowOverStr
 	invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
 
 done:
