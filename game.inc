@@ -31,6 +31,7 @@ EXTERNDEF KeyUp:DWORD
 EXTERNDEF KeyDown:DWORD
 EXTERNDEF KeyPress:DWORD
 EXTERNDEF spongebob:EECS205BITMAP
+EXTERNDEF deadspongebob:EECS205BITMAP
 EXTERNDEF bikinibottom:EECS205BITMAP
 EXTERNDEF krustykrab:EECS205BITMAP
 EXTERNDEF plankton:EECS205BITMAP
@@ -51,6 +52,10 @@ ShowLevelStr PROTO
 
 ;;;;;;;;;;;;;   GameState Sounds
 PlayAudio PROTO audio:DWORD
+BackgroundSong PROTO
+ThemeSong PROTO
+FedSong PROTO
+HitEnemy PROTO
 
 ;;; intersect functions
 CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD

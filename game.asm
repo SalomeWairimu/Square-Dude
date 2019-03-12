@@ -36,9 +36,14 @@ game_state DWORD 0
 currlevel DWORD 1
 falling DWORD 0
 themesong BYTE "themesong.wav", 0
+mainsong BYTE "backgroundsong.wav", 0
 atepatty BYTE "spongebob_laugh.wav", 0
 hitenemy BYTE "spongebob_stinks.wav", 0
-
+playeatingsound DWORD 0
+eatingsoundcount DWORD 0
+playfallingsound DWORD 0
+fallingsoundcount DWORD 0
+playmainsong DWORD 1
 level1enemies DWORD 5
 Level1patties DWORD 5
 level2enemies DWORD 7
@@ -73,17 +78,17 @@ SelectStr BYTE "Press L to purchase 1 life", 0
 BrokeStr BYTE "You're broke, You need at least 5 patties to buy a life", 0
 
 StartStr1 BYTE "Hi, welcome to Bikini Bottom", 0
-StartStr2 BYTE "To move to the next level, collect 10 krabby patties", 0
 StartStr3 BYTE "Beware, plankton will try to kill you", 0
 StartStr4 BYTE "You can trade in 3 patties for a life by pressing L at the Krusty Krab", 0
 StartStr11 BYTE "To pass level one, you need to collect 5 patties", 0
 StartStr12 BYTE "To pass level two, you need to collect 10 patties", 0
 StartStr5 BYTE "Game rules are: ", 0
-StartStr6 BYTE "To start press ENTER", 0
-StartStr7 BYTE "To move press the respective ARROW KEYS", 0
-StartStr8 BYTE "To pause press SPACE BAR", 0
-StartStr9 BYTE "To Quit press Q", 0
-StartStr10 BYTE "Enjoy", 0
+StartStr6 BYTE "To start, press ENTER", 0
+StartStr7 BYTE "To move, press the respective ARROW KEYS", 0
+StartStr8 BYTE "To pause, press SPACE BAR", 0
+StartStr2 BYTE "To unpause, press ENTER", 0
+StartStr9 BYTE "To Quit, press Q", 0
+StartStr10 BYTE "Enjoy :)", 0
 
 NextLevel1 BYTE "Congratulations! You advanced to the next level", 0
 NextLevel2 BYTE "Press Enter to proceed", 0
@@ -115,37 +120,38 @@ DeadEnemymove ENDP
 ;;;;;;;;;;;;;   GameState Pages
 
 ShowStartStr PROC
-	invoke DrawStr, offset StartStr1, 20, 100, 000h
-	invoke DrawStr, offset StartStr2, 20, 110, 000h
-	invoke DrawStr, offset StartStr3, 20, 120, 000h
-	invoke DrawStr, offset StartStr4, 20, 130, 000h
-	invoke DrawStr, offset StartStr11, 20, 140, 000h
-	invoke DrawStr, offset StartStr12, 20, 150, 000h
-	invoke DrawStr, offset StartStr5, 20, 160, 000h
-	invoke DrawStr, offset StartStr6, 20, 170, 000h
-	invoke DrawStr, offset StartStr7, 20, 180, 000h
-	invoke DrawStr, offset StartStr8, 20, 190, 000h
-	invoke DrawStr, offset StartStr9, 20, 200, 000h
-	invoke DrawStr, offset StartStr10, 20, 210, 000h
+	invoke DrawStr, offset StartStr1, 210, 220, 000h
+	invoke DrawStr, offset StartStr11, 140, 250, 000h
+	invoke DrawStr, offset StartStr12, 140, 260, 000h
+	invoke DrawStr, offset StartStr3, 210, 280, 000h
+	invoke DrawStr, offset StartStr4, 50, 290, 000h
+
+	invoke DrawStr, offset StartStr5, 150, 330, 000h
+	invoke DrawStr, offset StartStr6, 210, 340, 000h
+	invoke DrawStr, offset StartStr7, 210, 350, 000h
+	invoke DrawStr, offset StartStr8, 210, 360, 000h
+	invoke DrawStr, offset StartStr2, 210, 370, 000h
+	invoke DrawStr, offset StartStr9, 210, 380, 000h
+	invoke DrawStr, offset StartStr10, 210, 390, 000h
 
 	ret
 ShowStartStr ENDP
 
 ShowPausedStr PROC
-	invoke DrawStr, offset PausedStr, 200, 100, 000h
+	invoke DrawStr, offset PausedStr, 210, 240, 000h
 	ret
 ShowPausedStr ENDP
 
 ShowOverStr PROC
-	invoke DrawStr, offset GameOverStr, 20, 100, 000h
-	invoke DrawStr, offset GameOverStr2, 20, 110, 000h
+	invoke DrawStr, offset GameOverStr, 210, 240, 000h
+	invoke DrawStr, offset GameOverStr2, 210, 250, 000h
 	ret
 ShowOverStr ENDP
 
 ShowLevelStr PROC
-	invoke DrawStr, offset NextLevel1, 20, 100, 000h
-	invoke DrawStr, offset NextLevel2, 20, 110, 000h
-	invoke DrawStr, offset NextLevel3, 20, 120, 000h
+	invoke DrawStr, offset NextLevel1, 210, 240, 000h
+	invoke DrawStr, offset NextLevel2, 210, 250, 000h
+	invoke DrawStr, offset NextLevel3, 210, 260, 000h
 	ret
 ShowLevelStr ENDP
 
@@ -186,6 +192,7 @@ startpage:
 	cmp ebx, VK_RETURN
 	jne done
 	mov newstate, 1
+	Invoke BackgroundSong
 	jmp done
 
 playing:
@@ -342,6 +349,7 @@ CreatePlayer PROC USES ecx
 	mov (GAMEOBJECT PTR[ecx]).lives, 3
 	mov (GAMEOBJECT PTR[ecx]).foodpoints, 0
 	mov (GAMEOBJECT PTR[ecx]).score, 0
+	mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebob
 done:
 	ret
 CreatePlayer ENDP
@@ -429,6 +437,7 @@ playerfalling:
   cmp (GAMEOBJECT PTR[ecx]).posY, 29491200
   jl done
   mov falling, 0
+  mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebob
   invoke SetPlayerPos
 
 done:
@@ -604,6 +613,8 @@ InitFood ENDP
 ;;;;;;;;;;;;    Collision functions
 PlayerEnemyCollision PROC USES ecx ebx edx edi esi
 	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
+	cmp falling, 0
+	jne done
 	lea ebx, player
 	lea ecx, enemies
 	mov esi, (GAMEOBJECT PTR[ebx]).posX
@@ -626,16 +637,16 @@ mainloop:
 	jne reduce_lives
 	jmp inc_
 reduce_lives:
-	;invoke PlayAudio, offset hitenemy
 	sub (GAMEOBJECT PTR[ebx]).lives, 1
-	;invoke SetPlayerPos
-  mov falling, 1
+	mov falling, 1
+	mov (GAMEOBJECT PTR[ebx]).bmap, OFFSET deadspongebob
 inc_:
 	inc edi
 	add ecx, edx
 cond:
 	cmp edi, LENGTHOF enemies
 	jl mainloop
+
 done:
 	ret
 PlayerEnemyCollision ENDP
@@ -660,8 +671,9 @@ PlayerAte PROC USES ebx esi edx
 	cmp eax, 0
 	je done
 add_foodpoints:
-  invoke PlayAudio, offset atepatty
-	;invoke PlaySound, offset atepatty, 0,  SND_ASYNC
+	mov playmainsong, 0
+	mov playeatingsound, 1
+  	invoke FedSong
 	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
 newfoodpos:
 	invoke SetFoodPos
@@ -729,16 +741,38 @@ AddBackground PROC USES esi ebx
 	ret
 AddBackground ENDP
 
+ThemeSong PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset themesong, 0, SND_FILENAME OR SND_ASYNC
+    ret
+ThemeSong ENDP
 
+BackgroundSong PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset mainsong, 0, SND_FILENAME OR SND_ASYNC OR SND_LOOP
+    ret
+BackgroundSong ENDP
+
+FedSong PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset atepatty, 0, SND_ASYNC
+    ret
+FedSong ENDP
+
+HitEnemy PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset atepatty, 0, SND_ASYNC
+    ret
+HitEnemy ENDP
 ;;;;;;;;;;;;;   MAIN FUNCTIONS
 ResetGame PROC
 	invoke ClearScreen
 	invoke AddBackground
 	invoke SetFoodPos
 	invoke CreateShop
-	invoke CreatePlayer
 	invoke CreateEnemies
-  mov falling, 0
+	invoke CreatePlayer
+  	mov falling, 0
 	ret
 ResetGame ENDP
 GameInit PROC
@@ -746,11 +780,12 @@ GameInit PROC
 	invoke AddBackground
 	invoke SetFoodPos
 	invoke CreateShop
-	invoke CreatePlayer
 	invoke CreateEnemies
+	invoke CreatePlayer
 	invoke StatusBoard
+	invoke ThemeSong
 	;mov game_state, 0
-  mov falling, 0
+  	mov falling, 0
 	rdtsc
 	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
@@ -780,6 +815,23 @@ main:
 
 	cmp game_state, 2
 	je done
+sounds:
+	cmp playmainsong, 1
+	je move
+	cmp playeatingsound, 1
+	je eatingsong
+	jmp move
+
+eatingsong:
+	add eatingsoundcount, 1
+	cmp eatingsoundcount, 20
+	jl move
+	mov playeatingsound, 0
+	mov playmainsong, 1
+	mov eatingsoundcount, 0
+	invoke BackgroundSong
+	jmp move
+
 move:
 	lea ebx, player
 	add (GAMEOBJECT PTR[ebx]).score, 8192
