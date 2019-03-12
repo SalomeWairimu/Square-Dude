@@ -49,6 +49,9 @@ ShowPausedStr PROTO
 ShowOverStr PROTO
 ShowLevelStr PROTO
 
+;;;;;;;;;;;;;   GameState Sounds
+PlayAudio PROTO
+
 ;;; intersect functions
 CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
 CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
@@ -58,6 +61,7 @@ HandleInput PROTO
 
 ;; LEVEL Functions
 PlayerLevel PROTO
+LevelUp PROTO
 
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 CreateShop PROTO

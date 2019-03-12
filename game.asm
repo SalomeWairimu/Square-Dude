@@ -34,12 +34,14 @@ includelib \masm32\lib\masm32.lib
 
 game_state DWORD 0
 currlevel DWORD 1
+themesong BYTE "themesong.wav", 0
 atepatty BYTE "spongebob_laugh.wav", 0
 hitenemy BYTE "spongebob_stinks.wav", 0
+
 level1enemies DWORD 5
-Level1patties DWORD 10
+Level1patties DWORD 5
 level2enemies DWORD 7
-level2patties DWORD 15
+level2patties DWORD 10
 
 GAMEOBJECT STRUCT
 	posX FXPT ?
@@ -56,7 +58,8 @@ GAMEOBJECT ENDS
 
 food GAMEOBJECT<6553600, 9830400, 0, 0, 0, 0, 0, 0, OFFSET patty>
 player GAMEOBJECT<33554432, 5242880, 0, 0, 0, 3, 0, 0, OFFSET spongebob>
-enemies GAMEOBJECT 10 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET plankton>)
+;enemies GAMEOBJECT 10 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET plankton>)
+enemies GAMEOBJECT 10 DUP (<42598400, 32112640, 0, 0, 0, 1, 0, 0, OFFSET plankton>)
 shop GAMEOBJECT<20971520, 28180480, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
 background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET bikinibottom>
 fmtScoreStr BYTE "Score: %d", 0
@@ -71,7 +74,9 @@ BrokeStr BYTE "You're broke, You need at least 5 patties to buy a life", 0
 StartStr1 BYTE "Hi, welcome to Bikini Bottom", 0
 StartStr2 BYTE "To move to the next level, collect 10 krabby patties", 0
 StartStr3 BYTE "Beware, plankton will try to kill you", 0
-StartStr4 BYTE "You can trade in 5 patties for a life by pressing L at the Krusty Krab", 0
+StartStr4 BYTE "You can trade in 3 patties for a life by pressing L at the Krusty Krab", 0
+StartStr11 BYTE "To pass level one, you need to collect 5 patties", 0
+StartStr12 BYTE "To pass level two, you need to collect 10 patties", 0
 StartStr5 BYTE "Game rules are: ", 0
 StartStr6 BYTE "To start press ENTER", 0
 StartStr7 BYTE "To move press the respective ARROW KEYS", 0
@@ -109,42 +114,51 @@ DeadEnemymove ENDP
 ;;;;;;;;;;;;;   GameState Pages
 
 ShowStartStr PROC
-	invoke DrawStr, offset StartStr1, 20, 100, 0ffh
-	invoke DrawStr, offset StartStr2, 20, 110, 0ffh
-	invoke DrawStr, offset StartStr3, 20, 120, 0ffh
-	invoke DrawStr, offset StartStr4, 20, 130, 0ffh
-	invoke DrawStr, offset StartStr5, 20, 140, 0ffh
-	invoke DrawStr, offset StartStr6, 20, 150, 0ffh
-	invoke DrawStr, offset StartStr7, 20, 160, 0ffh
-	invoke DrawStr, offset StartStr8, 20, 170, 0ffh
-	invoke DrawStr, offset StartStr9, 20, 180, 0ffh
-	invoke DrawStr, offset StartStr10, 20, 190, 0ffh
+	invoke DrawStr, offset StartStr1, 20, 100, 000h
+	invoke DrawStr, offset StartStr2, 20, 110, 000h
+	invoke DrawStr, offset StartStr3, 20, 120, 000h
+	invoke DrawStr, offset StartStr4, 20, 130, 000h
+	invoke DrawStr, offset StartStr11, 20, 140, 000h
+	invoke DrawStr, offset StartStr12, 20, 150, 000h
+	invoke DrawStr, offset StartStr5, 20, 160, 000h
+	invoke DrawStr, offset StartStr6, 20, 170, 000h
+	invoke DrawStr, offset StartStr7, 20, 180, 000h
+	invoke DrawStr, offset StartStr8, 20, 190, 000h
+	invoke DrawStr, offset StartStr9, 20, 200, 000h
+	invoke DrawStr, offset StartStr10, 20, 210, 000h
+
 	ret
 ShowStartStr ENDP
 
 ShowPausedStr PROC
-	invoke DrawStr, offset PausedStr, 200, 100, 0ffh
+	invoke DrawStr, offset PausedStr, 200, 100, 000h
 	ret
 ShowPausedStr ENDP
 
 ShowOverStr PROC
-	invoke DrawStr, offset GameOverStr, 20, 100, 0ffh
-	invoke DrawStr, offset GameOverStr2, 20, 110, 0ffh
+	invoke DrawStr, offset GameOverStr, 20, 100, 000h
+	invoke DrawStr, offset GameOverStr2, 20, 110, 000h
 	ret
 ShowOverStr ENDP
 
 ShowLevelStr PROC
-	invoke DrawStr, offset NextLevel1, 20, 100, 0ffh
-	invoke DrawStr, offset NextLevel2, 20, 110, 0ffh
-	invoke DrawStr, offset NextLevel3, 20, 120, 0ffh
+	invoke DrawStr, offset NextLevel1, 20, 100, 000h
+	invoke DrawStr, offset NextLevel2, 20, 110, 000h
+	invoke DrawStr, offset NextLevel3, 20, 120, 000h
 	ret
 ShowLevelStr ENDP
 
 
-HandleInput PROC uses ebx edx ecx
+PlayAudio PROC
+	invoke PlaySound, offset themesong, 0,  SND_ASYNC
+PlayAudio ENDP
+
+
+HandleInput PROC uses ebx edx ecx esi
 	LOCAL newstate:DWORD
 	lea ecx, player
 	mov ebx, KeyPress
+	mov esi, KeyDown
 	mov edx, game_state
 	mov newstate, edx
 	cmp game_state, 0
@@ -179,7 +193,7 @@ pause_game:
 
 paused:
 	invoke ShowPausedStr
-	cmp ebx, VK_SPACE
+	cmp ebx, VK_RETURN
 	jne done
 	mov newstate, 1
 	jmp done
@@ -188,8 +202,7 @@ overpage:
 	invoke ShowOverStr
 	cmp ebx, VK_RETURN
 	jne done
-	;invoke ResetGame
-	mov (GAMEOBJECT PTR[ecx]).lives, 3
+	invoke ResetGame
 	mov newstate, 0
 	jmp done
 
@@ -202,7 +215,8 @@ switchlevel:
 	mov newstate, 3
 	jmp done
 newlevel:
-	;invoke LevelUp
+	invoke LevelUp
+	invoke ResetGame
 	mov newstate, 1
 
 done:
@@ -211,21 +225,36 @@ done:
 	ret
 HandleInput ENDP
 
-PlayerLevel PROC
+PlayerLevel PROC USES ebx
+	lea ebx, player
 	cmp currlevel, 1
 	je level1
-	cmp currlevel, 2
-	je level2
-
+level2:
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 10
+	jl done
+	mov game_state, 4
+	jmp done
+level1:
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5
+	jl done
+	mov game_state, 4
+done:
+	ret
 PlayerLevel ENDP
 
+LevelUp PROC
+	mov currlevel, 2
+	ret
+LevelUp ENDP
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 
 
 CreateShop PROC USES esi
 	lea esi, shop
 	mov (GAMEOBJECT PTR[esi]).posX, 20971520
-	mov (GAMEOBJECT PTR[esi]).posY, 28180480
+	mov (GAMEOBJECT PTR[esi]).posY, 22937600
+done:
+	ret
 CreateShop ENDP
 
 InitShop PROC USES esi ebx
@@ -260,20 +289,20 @@ Shopping PROC USES ebx esi edx
 	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
 	cmp eax, 0
 	je done
-	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 3
 	jl broke
 shopnow:
-	invoke DrawStr, offset SelectStr, 180, 200, 0ffh
+	invoke DrawStr, offset SelectStr, 180, 200, 000h
 	mov ecx, KeyPress
 	cmp ecx, VK_L
 	je buy_life
 	jmp done
 buy_life:
 	add (GAMEOBJECT PTR[ebx]).lives, 1
-	sub (GAMEOBJECT PTR[ebx]).foodpoints, 5
+	sub (GAMEOBJECT PTR[ebx]).foodpoints, 3
 	jmp done
 broke:
-	invoke DrawStr, offset BrokeStr,20, 200, 0ffh
+	invoke DrawStr, offset BrokeStr,20, 200, 000h
 done:
 	ret
 Shopping ENDP
@@ -379,10 +408,14 @@ PlayerMove ENDP
 
 
 ;;;;;;;;;;;;;   ENEMY FUNCTIONS
-CreateEnemies PROC USES ecx edi edx
+CreateEnemies PROC USES ecx edi edx esi
 	lea ecx, enemies
 	mov edi, 0
 	mov edx, TYPE enemies
+	mov esi, 5
+	cmp currlevel, 1
+	je cond
+	mov esi, 7
 mainloop:
 	push ecx
 	push edx
@@ -402,11 +435,43 @@ mainloop:
 	pop ecx
 	add eax, 1638400
 	mov (GAMEOBJECT PTR[ecx]).posY, eax
+set_vel_x:
+	push ecx
+	push edx
+	push edi
+	invoke nrandom, 20
+	pop edi
+	pop edx
+	pop ecx
+	cmp eax, 10
+	jl vel_x_neg
+vel_x_pos:
+	mov (GAMEOBJECT PTR[ecx]).velX, 65536
+	jmp set_vel_y
+vel_x_neg:
+	mov (GAMEOBJECT PTR[ecx]).velX, -65536
+set_vel_y:
+	push ecx
+	push edx
+	push edi
+	invoke nrandom, 20
+	pop edi
+	pop edx
+	pop ecx
+	cmp eax, 10
+	jl vel_y_neg
+vel_y_pos:
+	mov (GAMEOBJECT PTR[ecx]).velY, 65536
+	jmp set_vel_y
+vel_y_neg:
+	mov (GAMEOBJECT PTR[ecx]).velY, -65536
+
+
 inc_:
 	inc edi
 	add ecx, edx
 cond:
-	cmp edi, LENGTHOF enemies
+	cmp edi, esi
 	jl mainloop
 done:
 	ret
@@ -436,10 +501,14 @@ done:
 InitEnemies ENDP
 
 
-UpdateEnemies PROC USES ecx edi edx
+UpdateEnemies PROC USES ecx edi edx esi
 	lea ecx, enemies
 	mov edi, 0
 	mov edx, TYPE enemies
+	mov esi, 5
+	cmp currlevel, 1
+	je cond
+	mov esi, 7
 mainloop:
 	invoke Enemymove, ecx
 	jmp inc_
@@ -447,7 +516,7 @@ inc_:
 	inc edi
 	add ecx, edx
 cond:
-	cmp edi, LENGTHOF enemies
+	cmp edi, esi
 	jl mainloop
 done:
 	ret
@@ -570,7 +639,7 @@ PlayerAte ENDP
 
 
 ;;;;;;;;;;;;;   SCREEN FUNCTIONS
-StatusBoard PROC USES ebx ecx
+StatusBoard PROC USES ebx ecx edx
 	lea ebx, player
 score:
 	mov ecx, (GAMEOBJECT PTR[ebx]).score
@@ -580,21 +649,21 @@ score:
 	push offset outScoreStr
 	call wsprintf
 	add esp, 12
-	invoke DrawStr, offset outScoreStr, 300, 10, 0ffh
+	invoke DrawStr, offset outScoreStr, 300, 10, 000h
 lives:
 	push (GAMEOBJECT PTR[ebx]).lives
 	push offset fmtLivesStr
 	push offset outLivesStr
 	call wsprintf
 	add esp, 12
-	invoke DrawStr, offset outLivesStr, 500, 10, 0ffh
+	invoke DrawStr, offset outLivesStr, 500, 10, 000h
 foodpoints:
 	push (GAMEOBJECT PTR[ebx]).foodpoints
 	push offset fmtFoodStr
 	push offset outFoodStr
 	call wsprintf
 	add esp, 12
-	invoke DrawStr, offset outFoodStr, 10, 10, 0ffh
+	invoke DrawStr, offset outFoodStr, 10, 10, 000h
 done:
 	ret
 StatusBoard ENDP
@@ -637,7 +706,6 @@ ResetGame PROC
 	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
-	mov game_state, 0
 	ret
 ResetGame ENDP
 GameInit PROC
@@ -648,7 +716,7 @@ GameInit PROC
 	invoke CreatePlayer
 	invoke CreateEnemies
 	invoke StatusBoard
-	mov game_state, 0
+	;mov game_state, 0
 	rdtsc
 	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
@@ -659,6 +727,7 @@ GameInit ENDP
 GamePlay PROC uses ebx
 	invoke ClearScreen
 	invoke AddBackground
+	invoke PlayAudio
 	invoke HandleInput
 	cmp game_state, 0
 	je done
@@ -696,7 +765,7 @@ game_over:
 	mov game_state, 3
 	jmp done
 	; invoke ShowOverStr
-	; invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
+	; invoke DrawStr, offset GameOverStr, 320, 240, 000h
 levelcheck:
 	invoke PlayerLevel
 done:
