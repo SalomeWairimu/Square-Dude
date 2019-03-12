@@ -37,30 +37,62 @@ EXTERNDEF plankton:EECS205BITMAP
 EXTERNDEF patty:EECS205BITMAP
 
 ;; User Defined Functions
+
+;;;;;;;;;;;;   MAIN FUNCTIONS
 ResetGame PROTO
 GameInit PROTO
 GamePlay PROTO
-StatusBoard PROTO
-ClearScreen PROTO
-SetFoodPos PROTO
-InitFood PROTO
-MissileEnemyCollision PROTO
-ShootMissile PROTO
-MissileMove PROTO
-PlayerEnemyCollision PROTO
-DeadEnemymove PROTO obj:DWORD
-Enemymove PROTO obj:DWORD
-UpdateEnemies PROTO
-CreateEnemies PROTO
-InitEnemies PROTO
-PlayerMove PROTO mykey:DWORD
-UpdatePlayer PROTO
-CreatePlayer PROTO
-PlayerAppear PROTO
-Shopping PROTO
-CreateShop PROTO
+
+;;;;;;;;;;;;;   GameState Pages
+ShowStartStr PROTO
+ShowPausedStr PROTO
+ShowOverStr PROTO
+ShowLevelStr PROTO
+
+;;; intersect functions
 CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
 CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
+
+;; user input functions
+HandleInput PROTO
+
+;; LEVEL Functions
+PlayerLevel PROTO
+
+;;;;;;;;;;;;;   SHOP FUNCTIONS
+CreateShop PROTO
+InitShop PROTO
+Shopping PROTO
+
+;;;;;;;;;;;;;   PLAYER FUNCTIONS
+SetPlayerPos PROTO
+CreatePlayer PROTO
+InitPlayer PROTO
+UpdatePlayer PROTO
+PlayerMove PROTO mykey:DWORD
+
+
+;;;;;;;;;;;;;   ENEMY FUNCTIONS
+CreateEnemies PROTO
+InitEnemies PROTO
+UpdateEnemies PROTO
+Enemymove PROTO obj:DWORD
+
+;;;;;;;;;;;;;   FOOD FUNCTIONS
+SetFoodPos PROTO
+InitFood PROTO
+
+;;;;;;;;;;;;    Collision functions
+PlayerEnemyCollision PROTO
+PlayerAte PROTO
+
+;;;;;;;;;;;;;   SCREEN FUNCTIONS
+StatusBoard PROTO
+ClearScreen PROTO
+AddBackground PROTO
+
+
+
 
 
 

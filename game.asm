@@ -36,6 +36,11 @@ game_state DWORD 0
 currlevel DWORD 1
 atepatty BYTE "spongebob_laugh.wav", 0
 hitenemy BYTE "spongebob_stinks.wav", 0
+level1enemies DWORD 5
+Level1patties DWORD 10
+level2enemies DWORD 7
+level2patties DWORD 15
+
 GAMEOBJECT STRUCT
 	posX FXPT ?
 	posY FXPT ?
@@ -51,8 +56,8 @@ GAMEOBJECT ENDS
 
 food GAMEOBJECT<6553600, 9830400, 0, 0, 0, 0, 0, 0, OFFSET patty>
 player GAMEOBJECT<33554432, 5242880, 0, 0, 0, 3, 0, 0, OFFSET spongebob>
-enemies GAMEOBJECT 3 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET plankton>)
-shop GAMEOBJECT<15728640, 3276800, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
+enemies GAMEOBJECT 10 DUP (<26214400, 16384000, 65536, -65536, 0, 1, 0, 0, OFFSET plankton>)
+shop GAMEOBJECT<20971520, 28180480, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
 background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET bikinibottom>
 fmtScoreStr BYTE "Score: %d", 0
 fmtFoodStr BYTE "Food Points: %d", 0
@@ -84,6 +89,23 @@ GameOverStr BYTE "Game Over", 0
 GameOverStr2 BYTE "Press Enter to restart", 0
 
 .CODE
+
+;;;;; UNUSED
+DeadEnemymove PROC USES ecx edx myobj:DWORD
+	LOCAL y:DWORD
+	mov ecx, myobj
+	mov edx, (GAMEOBJECT PTR[ecx]).posY
+	sar edx, 16
+	mov y, edx
+	cmp y, 420
+	jge done
+dec_y:
+	sub (GAMEOBJECT PTR[ecx]).posY, 65536
+done:
+	ret
+DeadEnemymove ENDP
+
+
 ;;;;;;;;;;;;;   GameState Pages
 
 ShowStartStr PROC
@@ -118,6 +140,570 @@ ShowLevelStr PROC
 	ret
 ShowLevelStr ENDP
 
+
+HandleInput PROC uses ebx edx ecx
+	LOCAL newstate:DWORD
+	lea ecx, player
+	mov ebx, KeyPress
+	mov edx, game_state
+	mov newstate, edx
+	cmp game_state, 0
+	je startpage
+	cmp game_state, 1
+	je playing
+	cmp game_state, 2
+	je paused
+	cmp game_state, 3
+	je overpage
+	cmp game_state, 4
+	je switchlevel
+	jmp done
+
+startpage:
+	invoke ShowStartStr
+	cmp ebx, VK_RETURN
+	jne done
+	mov newstate, 1
+	jmp done
+
+playing:
+	cmp ebx, VK_SPACE
+	je pause_game
+	cmp ebx, VK_Q
+	jne done
+	mov newstate, 3
+	jmp done
+pause_game:
+	mov newstate, 2
+	jmp done
+
+paused:
+	invoke ShowPausedStr
+	cmp ebx, VK_SPACE
+	jne done
+	mov newstate, 1
+	jmp done
+
+overpage:
+	invoke ShowOverStr
+	cmp ebx, VK_RETURN
+	jne done
+	;invoke ResetGame
+	mov (GAMEOBJECT PTR[ecx]).lives, 3
+	mov newstate, 0
+	jmp done
+
+switchlevel:
+	invoke ShowLevelStr
+	cmp ebx, VK_RETURN
+	je newlevel
+	cmp ebx, VK_Q
+	jne done
+	mov newstate, 3
+	jmp done
+newlevel:
+	;invoke LevelUp
+	mov newstate, 1
+
+done:
+	mov edx, newstate
+	mov game_state, edx
+	ret
+HandleInput ENDP
+
+PlayerLevel PROC
+	cmp currlevel, 1
+	je level1
+	cmp currlevel, 2
+	je level2
+
+PlayerLevel ENDP
+
+;;;;;;;;;;;;;   SHOP FUNCTIONS
+
+
+CreateShop PROC USES esi
+	lea esi, shop
+	mov (GAMEOBJECT PTR[esi]).posX, 20971520
+	mov (GAMEOBJECT PTR[esi]).posY, 28180480
+CreateShop ENDP
+
+InitShop PROC USES esi ebx
+	LOCAL x:DWORD, y:DWORD
+	lea esi, shop
+	mov ebx, (GAMEOBJECT PTR[esi]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[esi]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
+	ret
+InitShop ENDP
+
+Shopping PROC USES ebx esi edx
+	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
+	lea ebx, player
+	lea esi, shop
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	sar edx, 16
+	mov x1, edx
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	sar edx, 16
+	mov y1, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posX
+	sar edx, 16
+	mov x2, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posY
+	sar edx, 16
+	mov y2, edx
+	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
+	cmp eax, 0
+	je done
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5
+	jl broke
+shopnow:
+	invoke DrawStr, offset SelectStr, 180, 200, 0ffh
+	mov ecx, KeyPress
+	cmp ecx, VK_L
+	je buy_life
+	jmp done
+buy_life:
+	add (GAMEOBJECT PTR[ebx]).lives, 1
+	sub (GAMEOBJECT PTR[ebx]).foodpoints, 5
+	jmp done
+broke:
+	invoke DrawStr, offset BrokeStr,20, 200, 0ffh
+done:
+	ret
+Shopping ENDP
+
+
+;;;;;;;;;;;;;   PLAYER FUNCTIONS
+SetPlayerPos PROC USES edx ecx edi
+	lea edx, player
+	push ecx
+	push edx
+	invoke nrandom, 38666240
+	pop edx
+	pop ecx
+	add eax, 1572864
+	mov (GAMEOBJECT PTR[edx]).posX, eax
+	push ecx
+	push edx
+	invoke nrandom, 28180480
+	pop edx
+	pop ecx
+	add eax, 1310720
+	mov (GAMEOBJECT PTR[edx]).posY, eax
+	ret
+SetPlayerPos ENDP
+
+CreatePlayer PROC USES ecx
+	invoke SetPlayerPos
+	lea ecx, player
+	mov (GAMEOBJECT PTR[ecx]).lives, 3
+	mov (GAMEOBJECT PTR[ecx]).foodpoints, 0
+	mov (GAMEOBJECT PTR[ecx]).score, 0
+done:
+	ret
+CreatePlayer ENDP
+
+InitPlayer PROC USES ebx edx
+	LOCAL x:DWORD, y:DWORD
+	lea ebx, player
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	sar edx, 16
+	mov x, edx
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	sar edx, 16
+	mov y, edx
+	invoke BasicBlit, (GAMEOBJECT PTR[ebx]).bmap, x, y
+	ret
+InitPlayer ENDP
+
+
+UpdatePlayer PROC USES ebx ecx
+keyboard:
+	mov ecx, OFFSET player
+	mov ebx, KeyPress
+	cmp ebx, VK_UP
+	je up
+	cmp ebx, VK_DOWN
+	je down
+	cmp ebx, VK_LEFT
+	je left
+	cmp ebx, VK_RIGHT
+	je right
+	jmp done
+up:
+	mov (GAMEOBJECT PTR[ecx]).velY, -327680
+	jmp moveplayer
+down:
+	mov (GAMEOBJECT PTR[ecx]).velY, 327680
+	jmp moveplayer
+left:
+	mov (GAMEOBJECT PTR[ecx]).velX, -327680
+	jmp moveplayer
+right:
+	mov (GAMEOBJECT PTR[ecx]).velX, 327680
+moveplayer:
+	invoke PlayerMove, ebx
+done:
+	ret												;; Do not delete this line!!!
+UpdatePlayer ENDP
+
+
+PlayerMove PROC USES ecx edx ebx esi mykey:DWORD
+	lea ecx, OFFSET player
+	mov ebx, 0
+	mov esi, mykey
+	invoke CheckBounds, ebx, ebx, ecx
+	cmp esi, VK_LEFT
+	je x_dir
+	cmp esi, VK_RIGHT
+	je x_dir
+	jmp y_dir
+
+x_dir:
+	mov edx, (GAMEOBJECT PTR[ecx]).velX
+	add (GAMEOBJECT PTR[ecx]).posX, edx
+	jmp done
+y_dir:
+	mov edx, (GAMEOBJECT PTR[ecx]).velY
+	add (GAMEOBJECT PTR[ecx]).posY, edx
+done:
+	ret
+PlayerMove ENDP
+
+
+
+;;;;;;;;;;;;;   ENEMY FUNCTIONS
+CreateEnemies PROC USES ecx edi edx
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	push ecx
+	push edx
+	push edi
+	invoke nrandom, 38666240
+	pop edi
+	pop edx
+	pop ecx
+	add eax, 1638400
+	mov (GAMEOBJECT PTR[ecx]).posX, eax
+	push ecx
+	push edx
+	push edi
+	invoke nrandom, 28180480
+	pop edi
+	pop edx
+	pop ecx
+	add eax, 1638400
+	mov (GAMEOBJECT PTR[ecx]).posY, eax
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+CreateEnemies ENDP
+
+InitEnemies PROC USES ecx edi edx ebx
+	LOCAL x:DWORD, y:DWORD
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	mov ebx, (GAMEOBJECT PTR[ecx]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[ecx]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[ecx]).bmap, x, y
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+InitEnemies ENDP
+
+
+UpdateEnemies PROC USES ecx edi edx
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	invoke Enemymove, ecx
+	jmp inc_
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+UpdateEnemies ENDP
+
+
+Enemymove PROC USES ebx ecx edx myobj:DWORD
+	mov ecx, myobj
+	mov ebx, 65536
+	invoke CheckBounds, ebx, ebx, ecx
+	mov edx, (GAMEOBJECT PTR[ecx]).velX
+	add (GAMEOBJECT PTR[ecx]).posX, edx
+	mov edx, (GAMEOBJECT PTR[ecx]).velY
+	add (GAMEOBJECT PTR[ecx]).posY, edx
+done:
+	ret
+Enemymove ENDP
+
+
+;;;;;;;;;;;;;   FOOD FUNCTIONS
+SetFoodPos PROC USES edx ecx edi
+	lea edx, food
+	push ecx
+	push edx
+	invoke nrandom, 38666240
+	pop edx
+	pop ecx
+	add eax, 1638400
+	mov (GAMEOBJECT PTR[edx]).posX, eax
+	push ecx
+	push edx
+	invoke nrandom, 28180480
+	pop edx
+	pop ecx
+	add eax, 1638400
+	mov (GAMEOBJECT PTR[edx]).posY, eax
+	ret
+SetFoodPos ENDP
+
+InitFood PROC USES edx ebx
+	LOCAL x:DWORD, y:DWORD
+	lea edx, food
+	mov ebx, (GAMEOBJECT PTR[edx]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[edx]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, x, y
+	ret
+InitFood ENDP
+
+
+
+;;;;;;;;;;;;    Collision functions
+PlayerEnemyCollision PROC USES ecx ebx edx edi esi
+	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
+	lea ebx, player
+	lea ecx, enemies
+	mov esi, (GAMEOBJECT PTR[ebx]).posX
+	sar esi, 16
+	mov x1, esi
+	mov esi, (GAMEOBJECT PTR[ebx]).posY
+	sar esi, 16
+	mov y1, esi
+	mov edi, 0
+	mov edx, TYPE enemies
+mainloop:
+	mov esi, (GAMEOBJECT PTR[ecx]).posX
+	sar esi, 16
+	mov x2, esi
+	mov esi, (GAMEOBJECT PTR[ecx]).posY
+	sar esi, 16
+	mov y2, esi
+	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[ecx]).bmap
+	cmp eax, 0
+	jne reduce_lives
+	jmp inc_
+reduce_lives:
+	;invoke PlaySound, offset hitenemy, 0, SND_FILENAME
+	sub (GAMEOBJECT PTR[ebx]).lives, 1
+	invoke SetPlayerPos
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+PlayerEnemyCollision ENDP
+
+PlayerAte PROC USES ebx esi edx
+	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
+	lea ebx, player
+	lea esi, food
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	sar edx, 16
+	mov x1, edx
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	sar edx, 16
+	mov y1, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posX
+	sar edx, 16
+	mov x2, edx
+	mov edx, (GAMEOBJECT PTR[esi]).posY
+	sar edx, 16
+	mov y2, edx
+	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
+	cmp eax, 0
+	je done
+add_foodpoints:
+	invoke PlaySound, offset atepatty, 0,  SND_ASYNC
+	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
+newfoodpos:
+	invoke SetFoodPos
+done:
+	ret
+PlayerAte ENDP
+
+
+;;;;;;;;;;;;;   SCREEN FUNCTIONS
+StatusBoard PROC USES ebx ecx
+	lea ebx, player
+score:
+	mov ecx, (GAMEOBJECT PTR[ebx]).score
+	sar ecx, 16
+	push ecx
+	push offset fmtScoreStr
+	push offset outScoreStr
+	call wsprintf
+	add esp, 12
+	invoke DrawStr, offset outScoreStr, 300, 10, 0ffh
+lives:
+	push (GAMEOBJECT PTR[ebx]).lives
+	push offset fmtLivesStr
+	push offset outLivesStr
+	call wsprintf
+	add esp, 12
+	invoke DrawStr, offset outLivesStr, 500, 10, 0ffh
+foodpoints:
+	push (GAMEOBJECT PTR[ebx]).foodpoints
+	push offset fmtFoodStr
+	push offset outFoodStr
+	call wsprintf
+	add esp, 12
+	invoke DrawStr, offset outFoodStr, 10, 10, 0ffh
+done:
+	ret
+StatusBoard ENDP
+
+
+ClearScreen PROC USES ebx
+	mov ebx, ScreenBitsPtr
+	mov eax, 0
+	jmp cond
+mainloop:
+	mov (BYTE PTR[ebx]), 000h
+	inc ebx
+	inc eax
+cond:
+	cmp eax, 307200
+	jl mainloop
+exit:
+	ret
+ClearScreen ENDP
+
+AddBackground PROC USES esi ebx
+	LOCAL x:DWORD, y:DWORD
+	lea esi, background
+	mov ebx, (GAMEOBJECT PTR[esi]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[esi]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
+	ret
+AddBackground ENDP
+
+
+;;;;;;;;;;;;;   MAIN FUNCTIONS
+ResetGame PROC
+	invoke ClearScreen
+	invoke AddBackground
+	invoke SetFoodPos
+	invoke CreateShop
+	invoke CreatePlayer
+	invoke CreateEnemies
+	mov game_state, 0
+	ret
+ResetGame ENDP
+GameInit PROC
+	invoke ClearScreen
+	invoke AddBackground
+	invoke SetFoodPos
+	invoke CreateShop
+	invoke CreatePlayer
+	invoke CreateEnemies
+	invoke StatusBoard
+	mov game_state, 0
+	rdtsc
+	invoke nseed, eax
+	ret         ;; Do not delete this line!!!
+GameInit ENDP
+
+
+
+GamePlay PROC uses ebx
+	invoke ClearScreen
+	invoke AddBackground
+	invoke HandleInput
+	cmp game_state, 0
+	je done
+	cmp game_state, 3
+	je done
+	cmp game_state, 4
+	je done
+
+main:
+	invoke InitFood
+	invoke InitShop
+	invoke InitPlayer
+	invoke InitEnemies
+	invoke StatusBoard
+
+
+	cmp game_state, 2
+	je done
+move:
+	lea ebx, player
+	add (GAMEOBJECT PTR[ebx]).score, 8192
+	invoke UpdatePlayer
+	invoke UpdateEnemies
+	invoke Shopping
+	invoke PlayerAte
+keep_playing:
+	invoke PlayerEnemyCollision
+
+player_alive:
+	lea ebx, player
+	cmp (GAMEOBJECT PTR[ebx]).lives, 0
+	jne levelcheck
+
+game_over:
+	mov game_state, 3
+	jmp done
+	; invoke ShowOverStr
+	; invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
+levelcheck:
+	invoke PlayerLevel
+done:
+	ret         ;; Do not delete this line!!!
+GamePlay ENDP
+
+;;; INTERSECT FUNCTIONS
 CheckIntersect PROC USES ebx ecx edx oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 	xor eax, eax
 
@@ -246,588 +832,5 @@ done:
 	ret
 CheckBounds ENDP
 
-HandleInput PROC uses ebx edx
-	LOCAL newstate:DWORD
-	mov ebx, KeyPress
-	mov edx, game_state
-	mov newstate, edx
-	cmp game_state, 0
-	je startpage
-	cmp game_state, 1
-	je playing
-	cmp game_state, 2
-	je paused
-	cmp game_state, 3
-	je overpage
-	cmp game_state, 4
-	je switchlevel
-	jmp done
-
-startpage:
-	invoke ShowStartStr
-	cmp ebx, VK_RETURN
-	jne done
-	mov newstate, 1
-	jmp done
-
-playing:
-	cmp ebx, VK_SPACE
-	je pause_game
-	cmp ebx, VK_Q
-	jne done
-	mov newstate, 3
-	jmp done
-;player_moving:
-;	invoke UpdatePlayer
-;	jmp done
-pause_game:
-	mov newstate, 2
-	jmp done
-
-paused:
-	invoke ShowPausedStr
-	cmp ebx, VK_SPACE
-	jne done
-	mov newstate, 1
-	jmp done
-
-overpage:
-	invoke ShowOverStr
-	cmp ebx, VK_RETURN
-	jne done
-	;invoke ResetGame
-	mov newstate, 1
-	jmp done
-
-switchlevel:
-	invoke ShowLevelStr
-	cmp ebx, VK_RETURN
-	je newlevel
-	cmp ebx, VK_Q
-	jne done
-	mov newstate, 3
-	jmp done
-newlevel:
-	;invoke LevelUp
-	mov newstate, 1
-
-
-done:
-	mov edx, newstate
-	mov game_state, edx
-	ret
-HandleInput endp
-
-
-
-;;;;;;;;;;;;;   SHOP FUNCTIONS
-
-InitShop PROC USES esi ebx
-	LOCAL x:DWORD, y:DWORD
-	lea esi, shop
-	mov ebx, (GAMEOBJECT PTR[esi]).posX
-	sar ebx, 16
-	mov x, ebx
-	mov ebx, (GAMEOBJECT PTR[esi]).posY
-	sar ebx, 16
-	mov y, ebx
-	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
-	ret
-InitShop ENDP
-
-CreateShop PROC USES esi
-	lea esi, shop
-	mov (GAMEOBJECT PTR[esi]).posX, 15728640
-	mov (GAMEOBJECT PTR[esi]).posY, 3276800
-CreateShop ENDP
-
-Shopping PROC USES ebx esi edx
-	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
-	lea ebx, player
-	lea esi, shop
-	mov edx, (GAMEOBJECT PTR[ebx]).posX
-	sar edx, 16
-	mov x1, edx
-	mov edx, (GAMEOBJECT PTR[ebx]).posY
-	sar edx, 16
-	mov y1, edx
-	mov edx, (GAMEOBJECT PTR[esi]).posX
-	sar edx, 16
-	mov x2, edx
-	mov edx, (GAMEOBJECT PTR[esi]).posY
-	sar edx, 16
-	mov y2, edx
-	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
-	cmp eax, 0
-	je done
-	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5
-	jl broke
-shopnow:
-	invoke DrawStr, offset SelectStr, 180, 200, 0ffh
-	mov ecx, KeyPress
-	cmp ecx, VK_L
-	je buy_life
-	jmp done
-buy_life:
-	add (GAMEOBJECT PTR[ebx]).lives, 1
-	sub (GAMEOBJECT PTR[ebx]).foodpoints, 5
-	jmp done
-broke:
-	invoke DrawStr, offset BrokeStr,20, 200, 0ffh
-done:
-	ret
-Shopping ENDP
-
-
-;;;;;;;;;;;;;   PLAYER FUNCTIONS
-InitPlayer PROC USES ebx edx
-	LOCAL x:DWORD, y:DWORD
-	lea ebx, player
-	mov edx, (GAMEOBJECT PTR[ebx]).posX
-	sar edx, 16
-	mov x, edx
-	mov edx, (GAMEOBJECT PTR[ebx]).posY
-	sar edx, 16
-	mov y, edx
-	invoke BasicBlit, (GAMEOBJECT PTR[ebx]).bmap, x, y
-	ret
-InitPlayer ENDP
-
-CreatePlayer PROC USES ecx
-	lea ecx, player
-	push ecx
-	invoke nrandom, 38666240
-	pop ecx
-	add eax, 1638400
-	mov (GAMEOBJECT PTR[ecx]).posX, eax
-	push ecx
-	invoke nrandom, 28180480
-	pop ecx
-	add eax, 1638400
-	mov (GAMEOBJECT PTR[ecx]).posY, eax
-  mov (GAMEOBJECT PTR[ecx]).lives, 3
-  mov (GAMEOBJECT PTR[ecx]).foodpoints, 0
-  mov (GAMEOBJECT PTR[ecx]).score, 0
-done:
-	ret
-CreatePlayer ENDP
-
-PlayerAppear PROC USES edx
-	lea edx, player
-	push ecx
-	push edx
-	invoke nrandom, 38666240
-	pop edx
-	pop ecx
-	add eax, 1572864
-	mov (GAMEOBJECT PTR[edx]).posX, eax
-	push ecx
-	push edx
-	invoke nrandom, 28180480
-	pop edx
-	pop ecx
-	add eax, 1310720
-	mov (GAMEOBJECT PTR[edx]).posY, eax
-	ret
-PlayerAppear ENDP
-
-UpdatePlayer PROC USES ebx ecx
-keyboard:
-	mov ecx, OFFSET player
-	mov ebx, KeyPress
-	cmp ebx, VK_UP
-	je up
-	cmp ebx, VK_DOWN
-	je down
-	cmp ebx, VK_LEFT
-	je left
-	cmp ebx, VK_RIGHT
-	je right
-	jmp done
-up:
-	mov (GAMEOBJECT PTR[ecx]).velY, -327680
-	jmp moveplayer
-down:
-	mov (GAMEOBJECT PTR[ecx]).velY, 327680
-	jmp moveplayer
-left:
-	mov (GAMEOBJECT PTR[ecx]).velX, -327680
-	jmp moveplayer
-right:
-	mov (GAMEOBJECT PTR[ecx]).velX, 327680
-moveplayer:
-	invoke PlayerMove, ebx
-done:
-	ret												;; Do not delete this line!!!
-UpdatePlayer ENDP
-
-
-PlayerMove PROC USES ecx edx ebx esi mykey:DWORD
-	lea ecx, OFFSET player
-	mov ebx, 0
-	mov esi, mykey
-	invoke CheckBounds, ebx, ebx, ecx
-	cmp esi, VK_LEFT
-	je x_dir
-	cmp esi, VK_RIGHT
-	je x_dir
-	jmp y_dir
-
-x_dir:
-	mov edx, (GAMEOBJECT PTR[ecx]).velX
-	add (GAMEOBJECT PTR[ecx]).posX, edx
-	jmp done
-y_dir:
-	mov edx, (GAMEOBJECT PTR[ecx]).velY
-	add (GAMEOBJECT PTR[ecx]).posY, edx
-done:
-	ret
-PlayerMove ENDP
-
-
-
-;;;;;;;;;;;;;   ENEMY FUNCTIONS
-InitEnemies PROC USES ecx edi edx ebx
-	LOCAL x:DWORD, y:DWORD
-	lea ecx, enemies
-	mov edi, 0
-	mov edx, TYPE enemies
-mainloop:
-	mov ebx, (GAMEOBJECT PTR[ecx]).posX
-	sar ebx, 16
-	mov x, ebx
-	mov ebx, (GAMEOBJECT PTR[ecx]).posY
-	sar ebx, 16
-	mov y, ebx
-	invoke BasicBlit, (GAMEOBJECT PTR[ecx]).bmap, x, y
-inc_:
-	inc edi
-	add ecx, edx
-cond:
-	cmp edi, LENGTHOF enemies
-	jl mainloop
-done:
-	ret
-InitEnemies ENDP
-
-CreateEnemies PROC USES ecx edi edx
-	lea ecx, enemies
-	mov edi, 0
-	mov edx, TYPE enemies
-mainloop:
-	push ecx
-	push edx
-	push edi
-	invoke nrandom, 38666240
-	pop edi
-	pop edx
-	pop ecx
-	add eax, 1638400
-	mov (GAMEOBJECT PTR[ecx]).posX, eax
-	push ecx
-	push edx
-	push edi
-	invoke nrandom, 28180480
-	pop edi
-	pop edx
-	pop ecx
-	add eax, 1638400
-	mov (GAMEOBJECT PTR[ecx]).posY, eax
-inc_:
-	inc edi
-	add ecx, edx
-cond:
-	cmp edi, LENGTHOF enemies
-	jl mainloop
-done:
-	ret
-CreateEnemies ENDP
-
-
-UpdateEnemies PROC USES ecx edi edx
-	lea ecx, enemies
-	mov edi, 0
-	mov edx, TYPE enemies
-mainloop:
-	cmp (GAMEOBJECT PTR[ecx]).lives, 0
-	je deadenemy
-	invoke Enemymove, ecx
-	jmp inc_
-deadenemy:
-	invoke DeadEnemymove, ecx
-inc_:
-	inc edi
-	add ecx, edx
-cond:
-	cmp edi, LENGTHOF enemies
-	jl mainloop
-done:
-	ret
-UpdateEnemies ENDP
-
-
-Enemymove PROC USES ebx ecx edx myobj:DWORD
-	mov ecx, myobj
-	mov ebx, 65536
-	invoke CheckBounds, ebx, ebx, ecx
-	mov edx, (GAMEOBJECT PTR[ecx]).velX
-	add (GAMEOBJECT PTR[ecx]).posX, edx
-	mov edx, (GAMEOBJECT PTR[ecx]).velY
-	add (GAMEOBJECT PTR[ecx]).posY, edx
-done:
-	ret
-Enemymove ENDP
-
-
-DeadEnemymove PROC USES ecx edx myobj:DWORD
-	LOCAL y:DWORD
-	mov ecx, myobj
-	mov edx, (GAMEOBJECT PTR[ecx]).posY
-	sar edx, 16
-	mov y, edx
-	cmp y, 420
-	jge done
-dec_y:
-	sub (GAMEOBJECT PTR[ecx]).posY, 65536
-done:
-	ret
-DeadEnemymove ENDP
-
-
-PlayerEnemyCollision PROC USES ecx ebx edx edi esi
-	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
-	lea ebx, player
-	lea ecx, enemies
-	mov esi, (GAMEOBJECT PTR[ebx]).posX
-	sar esi, 16
-	mov x1, esi
-	mov esi, (GAMEOBJECT PTR[ebx]).posY
-	sar esi, 16
-	mov y1, esi
-	mov edi, 0
-	mov edx, TYPE enemies
-mainloop:
-	mov esi, (GAMEOBJECT PTR[ecx]).posX
-	sar esi, 16
-	mov x2, esi
-	mov esi, (GAMEOBJECT PTR[ecx]).posY
-	sar esi, 16
-	mov y2, esi
-	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[ecx]).bmap
-	cmp eax, 0
-	jne reduce_lives
-	jmp inc_
-reduce_lives:
-	;invoke PlaySound, offset hitenemy, 0, SND_FILENAME
-	sub (GAMEOBJECT PTR[ebx]).lives, 1
-	invoke PlayerAppear
-inc_:
-	inc edi
-	add ecx, edx
-cond:
-	cmp edi, LENGTHOF enemies
-	jl mainloop
-done:
-	ret
-PlayerEnemyCollision ENDP
-
-
-
-
-;;;;;;;;;;;;;   FOOD FUNCTIONS
-InitFood PROC USES edx ebx
-	LOCAL x:DWORD, y:DWORD
-	lea edx, food
-	mov ebx, (GAMEOBJECT PTR[edx]).posX
-	sar ebx, 16
-	mov x, ebx
-	mov ebx, (GAMEOBJECT PTR[edx]).posY
-	sar ebx, 16
-	mov y, ebx
-	invoke BasicBlit, (GAMEOBJECT PTR[edx]).bmap, x, y
-	ret
-InitFood ENDP
-
-
-PlayerAte PROC USES ebx esi edx
-	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
-	lea ebx, player
-	lea esi, food
-	mov edx, (GAMEOBJECT PTR[ebx]).posX
-	sar edx, 16
-	mov x1, edx
-	mov edx, (GAMEOBJECT PTR[ebx]).posY
-	sar edx, 16
-	mov y1, edx
-	mov edx, (GAMEOBJECT PTR[esi]).posX
-	sar edx, 16
-	mov x2, edx
-	mov edx, (GAMEOBJECT PTR[esi]).posY
-	sar edx, 16
-	mov y2, edx
-	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
-	cmp eax, 0
-	je done
-add_foodpoints:
-	invoke PlaySound, offset atepatty, 0,  SND_ASYNC
-	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
-newfoodpos:
-	invoke SetFoodPos
-done:
-	ret
-PlayerAte ENDP
-
-
-SetFoodPos PROC USES edx ecx
-	lea edx, food
-	push ecx
-	push edx
-	invoke nrandom, 38666240
-	pop edx
-	pop ecx
-	add eax, 1638400
-	mov (GAMEOBJECT PTR[edx]).posX, eax
-	push ecx
-	push edx
-	invoke nrandom, 28180480
-	pop edx
-	pop ecx
-	add eax, 1638400
-	mov (GAMEOBJECT PTR[edx]).posY, eax
-	ret
-SetFoodPos ENDP
-
-
-
-;;;;;;;;;;;;;   SCREEN FUNCTIONS
-StatusBoard PROC USES ebx ecx
-	lea ebx, player
-score:
-	mov ecx, (GAMEOBJECT PTR[ebx]).score
-	sar ecx, 16
-	push ecx
-	push offset fmtScoreStr
-	push offset outScoreStr
-	call wsprintf
-	add esp, 12
-	invoke DrawStr, offset outScoreStr, 300, 10, 0ffh
-lives:
-	push (GAMEOBJECT PTR[ebx]).lives
-	push offset fmtLivesStr
-	push offset outLivesStr
-	call wsprintf
-	add esp, 12
-	invoke DrawStr, offset outLivesStr, 500, 10, 0ffh
-foodpoints:
-	push (GAMEOBJECT PTR[ebx]).foodpoints
-	push offset fmtFoodStr
-	push offset outFoodStr
-	call wsprintf
-	add esp, 12
-	invoke DrawStr, offset outFoodStr, 10, 10, 0ffh
-done:
-	ret
-StatusBoard ENDP
-
-
-ClearScreen PROC USES ebx
-	mov ebx, ScreenBitsPtr
-	mov eax, 0
-	jmp cond
-mainloop:
-	mov (BYTE PTR[ebx]), 000h
-	inc ebx
-	inc eax
-cond:
-	cmp eax, 307200
-	jl mainloop
-exit:
-	ret
-ClearScreen ENDP
-
-AddBackground PROC USES esi ebx
-	LOCAL x:DWORD, y:DWORD
-	lea esi, background
-	mov ebx, (GAMEOBJECT PTR[esi]).posX
-	sar ebx, 16
-	mov x, ebx
-	mov ebx, (GAMEOBJECT PTR[esi]).posY
-	sar ebx, 16
-	mov y, ebx
-	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
-	ret
-AddBackground ENDP
-
-
-;;;;;;;;;;;;;   MAIN FUNCTIONS
-ResetGame PROC
-	invoke ClearScreen
-	invoke AddBackground
-	invoke SetFoodPos
-	invoke CreateShop
-	invoke CreatePlayer
-	invoke CreateEnemies
-	mov game_state, 0
-	ret
-ResetGame ENDP
-GameInit PROC
-	invoke ClearScreen
-	invoke AddBackground
-	;invoke HandleInput
-	invoke SetFoodPos
-	invoke CreateShop
-	invoke CreatePlayer
-	invoke CreateEnemies
-	invoke StatusBoard
-	rdtsc
-	invoke nseed, eax
-	ret         ;; Do not delete this line!!!
-GameInit ENDP
-
-
-
-GamePlay PROC uses ebx
-	invoke ClearScreen
-	invoke AddBackground
-	;invoke HandleInput
-	cmp game_state, 0
-	je done
-	cmp game_state, 3
-	je done
-	cmp game_state, 4
-	je done
-
-player_alive:
-	lea ebx, player
-	cmp (GAMEOBJECT PTR[ebx]).lives, 0
-	je done
-
-main:
-	invoke InitFood
-	invoke InitShop
-	invoke InitPlayer
-	invoke InitEnemies
-	invoke StatusBoard
-
-
-	cmp game_state, 2
-	je done
-move:
-	add (GAMEOBJECT PTR[ebx]).score, 8192
-	invoke UpdatePlayer
-	invoke UpdateEnemies
-	invoke Shopping
-	invoke PlayerAte
-keep_playing:
-	invoke PlayerEnemyCollision
-	jmp done
-
-game_over:
-	invoke ShowOverStr
-	invoke DrawStr, offset GameOverStr, 320, 240, 0ffh
-
-done:
-	ret         ;; Do not delete this line!!!
-GamePlay ENDP
 
 END
