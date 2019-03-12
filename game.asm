@@ -34,6 +34,7 @@ includelib \masm32\lib\masm32.lib
 
 game_state DWORD 0
 currlevel DWORD 1
+falling DWORD 0
 themesong BYTE "themesong.wav", 0
 atepatty BYTE "spongebob_laugh.wav", 0
 hitenemy BYTE "spongebob_stinks.wav", 0
@@ -149,8 +150,15 @@ ShowLevelStr PROC
 ShowLevelStr ENDP
 
 
-PlayAudio PROC
-	invoke PlaySound, offset themesong, 0,  SND_ASYNC
+PlayAudio PROC USES ecx audio:DWORD
+  xor ecx, ecx
+  invoke PlaySound, audio, 0,  SND_ASYNC
+mainloop:
+  inc ecx
+cond:
+  cmp ecx, 5
+  jl mainloop
+  ret
 PlayAudio ENDP
 
 
@@ -353,9 +361,11 @@ InitPlayer ENDP
 
 
 UpdatePlayer PROC USES ebx ecx
+  mov ecx, OFFSET player
+  mov ebx, KeyPress
+  cmp falling, 0
+  jne playerfalling
 keyboard:
-	mov ecx, OFFSET player
-	mov ebx, KeyPress
 	cmp ebx, VK_UP
 	je up
 	cmp ebx, VK_DOWN
@@ -376,8 +386,17 @@ left:
 	jmp moveplayer
 right:
 	mov (GAMEOBJECT PTR[ecx]).velX, 327680
+  jmp moveplayer
+
+playerfalling:
+  mov (GAMEOBJECT PTR[ecx]).velY, 327680
+  mov (GAMEOBJECT PTR[ecx]).velX, 0
+
 moveplayer:
 	invoke PlayerMove, ebx
+  jmp done
+
+
 done:
 	ret												;; Do not delete this line!!!
 UpdatePlayer ENDP
@@ -385,6 +404,8 @@ UpdatePlayer ENDP
 
 PlayerMove PROC USES ecx edx ebx esi mykey:DWORD
 	lea ecx, OFFSET player
+  cmp falling, 0
+  jne playerfalling
 	mov ebx, 0
 	mov esi, mykey
 	invoke CheckBounds, ebx, ebx, ecx
@@ -401,6 +422,15 @@ x_dir:
 y_dir:
 	mov edx, (GAMEOBJECT PTR[ecx]).velY
 	add (GAMEOBJECT PTR[ecx]).posY, edx
+  jmp done
+playerfalling:
+  mov edx, (GAMEOBJECT PTR[ecx]).velY
+  add (GAMEOBJECT PTR[ecx]).posY, edx
+  cmp (GAMEOBJECT PTR[ecx]).posY, 29491200
+  jl done
+  mov falling, 0
+  invoke SetPlayerPos
+
 done:
 	ret
 PlayerMove ENDP
@@ -596,9 +626,10 @@ mainloop:
 	jne reduce_lives
 	jmp inc_
 reduce_lives:
-	;invoke PlaySound, offset hitenemy, 0, SND_FILENAME
+	;invoke PlayAudio, offset hitenemy
 	sub (GAMEOBJECT PTR[ebx]).lives, 1
-	invoke SetPlayerPos
+	;invoke SetPlayerPos
+  mov falling, 1
 inc_:
 	inc edi
 	add ecx, edx
@@ -629,7 +660,8 @@ PlayerAte PROC USES ebx esi edx
 	cmp eax, 0
 	je done
 add_foodpoints:
-	invoke PlaySound, offset atepatty, 0,  SND_ASYNC
+  invoke PlayAudio, offset atepatty
+	;invoke PlaySound, offset atepatty, 0,  SND_ASYNC
 	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
 newfoodpos:
 	invoke SetFoodPos
@@ -706,6 +738,7 @@ ResetGame PROC
 	invoke CreateShop
 	invoke CreatePlayer
 	invoke CreateEnemies
+  mov falling, 0
 	ret
 ResetGame ENDP
 GameInit PROC
@@ -717,6 +750,7 @@ GameInit PROC
 	invoke CreateEnemies
 	invoke StatusBoard
 	;mov game_state, 0
+  mov falling, 0
 	rdtsc
 	invoke nseed, eax
 	ret         ;; Do not delete this line!!!
@@ -727,7 +761,7 @@ GameInit ENDP
 GamePlay PROC uses ebx
 	invoke ClearScreen
 	invoke AddBackground
-	invoke PlayAudio
+	;invoke PlayAudio
 	invoke HandleInput
 	cmp game_state, 0
 	je done

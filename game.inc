@@ -50,7 +50,7 @@ ShowOverStr PROTO
 ShowLevelStr PROTO
 
 ;;;;;;;;;;;;;   GameState Sounds
-PlayAudio PROTO
+PlayAudio PROTO audio:DWORD
 
 ;;; intersect functions
 CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
@@ -94,9 +94,3 @@ PlayerAte PROTO
 StatusBoard PROTO
 ClearScreen PROTO
 AddBackground PROTO
-
-
-
-
-
-
