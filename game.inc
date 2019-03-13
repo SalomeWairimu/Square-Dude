@@ -84,6 +84,9 @@ PlayerMove PROTO mykey:DWORD
 
 
 ;;;;;;;;;;;;;   ENEMY FUNCTIONS
+SetEnemyPos PROTO myaddr:DWORD
+SetEnemyVel PROTO myaddr:DWORD
+SafeEnemyZone PROTO myaddr:DWORD
 CreateEnemies PROTO
 InitEnemies PROTO
 UpdateEnemies PROTO
