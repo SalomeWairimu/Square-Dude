@@ -12,6 +12,18 @@ MouseInfo STRUCT
  buttons DWORD ?
 MouseInfo ENDS
 
+GAMEOBJECT STRUCT
+	posX FXPT ?
+	posY FXPT ?
+	velX FXPT ?
+	velY FXPT ?
+	angle FXPT ?
+	lives DWORD ?
+	score DWORD ?
+	foodpoints DWORD ?
+	bmap DWORD ?
+GAMEOBJECT ENDS
+
 MK_CONTROL  = 0008h  ;; The CTRL key is down.
 MK_LBUTTON  = 0001h  ;; The left mouse button is down.
 MK_MBUTTON  = 0010h  ;; The middle mouse button is down.
@@ -36,6 +48,9 @@ EXTERNDEF bikinibottom:EECS205BITMAP
 EXTERNDEF krustykrab:EECS205BITMAP
 EXTERNDEF plankton:EECS205BITMAP
 EXTERNDEF patty:EECS205BITMAP
+EXTERNDEF SelectStr:BYTE
+EXTERNDEF fmtPurchaseStr:BYTE
+EXTERNDEF outPurchaseStr:BYTE
 
 ;; User Defined Functions
 
@@ -45,11 +60,7 @@ GameInit PROTO
 GamePlay PROTO
 RestoreEnemies PROTO
 
-;;;;;;;;;;;;;   GameState Pages
-ShowStartStr PROTO
-ShowPausedStr PROTO
-ShowOverStr PROTO
-ShowLevelStr PROTO
+
 
 ;;;;;;;;;;;;;   GameState Sounds
 BackgroundSong PROTO
@@ -104,6 +115,5 @@ PlayerEnemyCollision PROTO
 PlayerAte PROTO
 
 ;;;;;;;;;;;;;   SCREEN FUNCTIONS
-StatusBoard PROTO
 ClearScreen PROTO
 AddBackground PROTO

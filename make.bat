@@ -71,12 +71,16 @@ ml /I%MASMINCPATH% /c  /coff  /Cp bikinibottom.asm
 
 if %errorlevel% neq 0 goto :error
 
+ml /I%MASMINCPATH% /c  /coff  /Cp strings.asm
+
+if %errorlevel% neq 0 goto :error
+
 ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
 
 if %errorlevel% neq 0 goto :error
 
 
-link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj patty.obj plankton.obj krustykrab.obj spongebob.obj bikinibottom.obj libgame.obj
+link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj strings.obj blit.obj trig.obj lines.obj stars.obj patty.obj plankton.obj krustykrab.obj spongebob.obj bikinibottom.obj libgame.obj
 
 if %errorlevel% neq 0 goto :error
 
