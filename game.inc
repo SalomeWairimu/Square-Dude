@@ -43,6 +43,7 @@ EXTERNDEF patty:EECS205BITMAP
 ResetGame PROTO
 GameInit PROTO
 GamePlay PROTO
+RestoreEnemies PROTO
 
 ;;;;;;;;;;;;;   GameState Pages
 ShowStartStr PROTO

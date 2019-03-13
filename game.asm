@@ -67,7 +67,7 @@ GAMEOBJECT ENDS
 
 food GAMEOBJECT<6553600, 9830400, 0, 0, 0, 0, 0, 0, OFFSET patty>
 player GAMEOBJECT<33554432, 5242880, 0, 0, 0, 3, 0, 0, OFFSET spongebob>
-enemies GAMEOBJECT 7 DUP (<42598400, 32112640, 0, 0, 0, 1, 0, 0, OFFSET plankton>)
+enemies GAMEOBJECT 10 DUP (<42598400, 32112640, 0, 0, 0, 1, 0, 0, OFFSET plankton>)
 shop GAMEOBJECT<20971520, 28180480, 0, 0, 0, 0, 0, 0, OFFSET krustykrab>
 background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET bikinibottom>
 fmtScoreStr BYTE "Score: %d", 0
@@ -99,7 +99,7 @@ NextLevel1 BYTE "Congratulations! You advanced to the next level", 0
 NextLevel2 BYTE "Press Enter to proceed", 0
 NextLevel3 BYTE "Press Q to quit", 0
 
-PausedStr BYTE "Game is paused, press SPACE BAR to play", 0
+PausedStr BYTE "Game is paused, press ENTER to resume", 0
 
 GameOverStr BYTE "Game Over", 0
 GameOverStr2 BYTE "Press Enter to restart", 0
@@ -198,6 +198,7 @@ playing:
 	mov playmainsong, 0
 	mov playcashsound, 0
 	mov playeatingsound, 0
+	mov currlevel, 1
 	mov newstate, 3
 	jmp done
 pause_game:
@@ -218,7 +219,8 @@ overpage:
 	cmp ebx, VK_RETURN
 	jne done
 	invoke ResetGame
-	mov newstate, 0
+	mov newstate, 1
+	invoke BackgroundSong
 	jmp done
 
 switchlevel:
@@ -835,13 +837,14 @@ done:
 Enemymove ENDP
 
 EnemyCollisions PROC USES ecx esi edx edi ebx
-	LOCAL outerX:DWORD, outerY:DWORD, innerX:DWORD, innerY:DWORD, index:DWORD, len: DWORD, curraddr:DWORD
+	LOCAL outerX:DWORD, outerY:DWORD, innerX:DWORD, innerY:DWORD, index:DWORD, len: DWORD, startaddr:DWORD
 	mov len, 5
 	cmp currlevel, 1
 	je start
 	mov len, 7
 start:
 	lea ecx, enemies
+	mov startaddr, ecx
 	xor esi, esi
 	jmp outercond
 
@@ -857,7 +860,7 @@ outerloop:
 innerloop:
 	mov ebx, edi
 	imul ebx, index
-	add ebx, ecx
+	add ebx, startaddr
 	mov edx, (GAMEOBJECT PTR[ebx]).posX
 	mov innerX, edx
 	sar innerX, 16
@@ -867,40 +870,8 @@ innerloop:
 	invoke CheckIntersect, outerX, outerY, OFFSET plankton, innerX, innerY, OFFSET plankton
 	cmp eax, 0
 	je innerinc_
-
-x_velocities:
-	mov eax, (GAMEOBJECT PTR[ebx]).velX
-	cmp eax, (GAMEOBJECT PTR[ecx]).velX
-	jne diff_x
-same_x:
-	mov eax, (GAMEOBJECT PTR[ebx]).posX
-	cmp eax, (GAMEOBJECT PTR[ecx]).posX
-	jge inc_ebx_x
-dec_ebx_x:
-	neg (GAMEOBJECT PTR[ebx]).velX
-	jmp y_velocities
-inc_ebx_x:
-	neg (GAMEOBJECT PTR[ecx]).velX
-	jmp y_velocities
-diff_x:
 	neg (GAMEOBJECT PTR[ecx]).velX
 	neg (GAMEOBJECT PTR[ebx]).velX
-
-y_velocities:
-	mov eax, (GAMEOBJECT PTR[ebx]).velY
-	cmp eax, (GAMEOBJECT PTR[ecx]).velY
-	jne diff_y
-same_y:
-	mov eax, (GAMEOBJECT PTR[ebx]).posY
-	cmp eax, (GAMEOBJECT PTR[ecx]).posY
-	jge inc_ebx_y
-dec_ebx_y:
-	neg (GAMEOBJECT PTR[ebx]).velY
-	jmp innerinc_
-inc_ebx_y:
-	neg (GAMEOBJECT PTR[ecx]).velY
-	jmp innerinc_
-diff_y:
 	neg (GAMEOBJECT PTR[ecx]).velY
 	neg (GAMEOBJECT PTR[ebx]).velY
 
@@ -1099,6 +1070,7 @@ reduce_lives:
 	mov playmainsong, 0
 	mov playcashsound, 0
 	mov playeatingsound, 0
+	mov currlevel, 1
 inc_:
 	inc edi
 	add ecx, edx
@@ -1245,11 +1217,34 @@ LostGame PROC
 LostGame ENDP
 
 ;;;;;;;;;;;;;   MAIN FUNCTIONS
+
+RestoreEnemies PROC USES ecx edi edx esi
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+
+mainloop:
+	mov (GAMEOBJECT PTR[ecx]).posX, 42598400
+	mov (GAMEOBJECT PTR[ecx]).posY, 32112640
+	mov (GAMEOBJECT PTR[ecx]).velX, 0
+	mov (GAMEOBJECT PTR[ecx]).velY, 0
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+RestoreEnemies ENDP
+
+
 ResetGame PROC
 	invoke ClearScreen
 	invoke AddBackground
 	invoke SetFoodPos
 	invoke CreateShop
+	invoke RestoreEnemies
 	invoke CreateEnemies
 	invoke CreatePlayer
   	mov falling, 0
@@ -1260,8 +1255,8 @@ GameInit PROC
 	invoke AddBackground
 	invoke SetFoodPos
 	invoke CreateShop
+	invoke RestoreEnemies
 	invoke CreateEnemies
-	;invoke EnemyCollisions
 	invoke CreatePlayer
 	invoke StatusBoard
 	invoke ThemeSong
@@ -1333,6 +1328,7 @@ move:
 	invoke PlayerAte
 keep_playing:
 	invoke PlayerEnemyCollision
+	invoke EnemyCollisions
 
 player_alive:
 	lea ebx, player
