@@ -54,30 +54,10 @@ EXTERNDEF outPurchaseStr:BYTE
 
 ;; User Defined Functions
 
-;;;;;;;;;;;;   MAIN FUNCTIONS
-ResetGame PROTO
-GameInit PROTO
-GamePlay PROTO
-RestoreEnemies PROTO
-
-
-
-;;;;;;;;;;;;;   GameState Sounds
-BackgroundSong PROTO
-ThemeSong PROTO
-FedSong PROTO
-Passed PROTO
-MadePurchase PROTO
-LostGame PROTO
-
-;;; intersect functions
-CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
-CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
-
-;; user input functions
+;;;;;;;;;;;;; user input functions
 HandleInput PROTO
 
-;; LEVEL Functions
+;;;;;;;;;;;;; LEVEL Functions
 PlayerLevel PROTO
 LevelUp PROTO
 
@@ -94,15 +74,14 @@ InitPlayer PROTO
 UpdatePlayer PROTO
 PlayerMove PROTO mykey:DWORD
 
-
 ;;;;;;;;;;;;;   ENEMY FUNCTIONS
 SetEnemyPos PROTO myaddr:DWORD
 SetEnemyVel PROTO myaddr:DWORD
 SafeEnemyZone PROTO myaddr:DWORD
 CreateEnemies PROTO
+RestoreEnemies PROTO
 InitEnemies PROTO
 UpdateEnemies PROTO
-EnemyCollisions PROTO
 Enemymove PROTO obj:DWORD
 
 ;;;;;;;;;;;;;   FOOD FUNCTIONS
@@ -113,7 +92,30 @@ InitFood PROTO
 ;;;;;;;;;;;;    Collision functions
 PlayerEnemyCollision PROTO
 PlayerAte PROTO
+EnemyCollisions PROTO
+CheckIntersect PROTO oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
+CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
+
 
 ;;;;;;;;;;;;;   SCREEN FUNCTIONS
 ClearScreen PROTO
 AddBackground PROTO
+
+
+;;;;;;;;;;;;;   GameState Sounds
+BackgroundSong PROTO
+ThemeSong PROTO
+FedSong PROTO
+Passed PROTO
+MadePurchase PROTO
+LostGame PROTO
+
+;;;;;;;;;;;;   MAIN FUNCTIONS
+ResetGame PROTO
+GameInit PROTO
+GamePlay PROTO
+
+
+
+
+

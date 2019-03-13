@@ -6,6 +6,13 @@
 ;
 ; #########################################################################
 
+; #########################################################################
+;
+;	I have included a README.txt with a description of the game
+;	Take a look at game.inc to see all the functions I have and their categories
+;
+; #########################################################################
+
       .586
       .MODEL FLAT,STDCALL
       .STACK 4096
@@ -45,6 +52,7 @@ passedlevel BYTE "applause.wav", 0
 game_state DWORD 0
 currlevel DWORD 1
 falling DWORD 0
+falling_acceleration FXPT 65536
 playeatingsound DWORD 0
 eatingsoundcount DWORD 0
 playcashsound DWORD 0
@@ -65,8 +73,14 @@ background GAMEOBJECT<20971520, 15728640, 0, 0, 0, 0, 0, 0, OFFSET bikinibottom>
 
 
 .CODE
+; #########################################################################
+
+;;;;;;;;;;;;;   USER INPUT FUNCTIONS
+
+; #########################################################################
 
 
+;; handles the user input to start, pause, play, quit and advance to the next level
 HandleInput PROC uses ebx edx ecx esi
 	LOCAL newstate:DWORD
 	lea ecx, player
@@ -74,30 +88,30 @@ HandleInput PROC uses ebx edx ecx esi
 	mov esi, KeyDown
 	mov edx, game_state
 	mov newstate, edx
-	cmp game_state, 0
+	cmp game_state, 0										;;currently on the welcome page
 	je startpage
-	cmp game_state, 1
+	cmp game_state, 1										;;user is currently playing
 	je playing
-	cmp game_state, 2
+	cmp game_state, 2										;;game is currently paused
 	je paused
-	cmp game_state, 3
+	cmp game_state, 3										;;user lost or quit the game
 	je overpage
-	cmp game_state, 4
+	cmp game_state, 4										;;user passed the current level
 	je switchlevel
 	jmp done
 
 startpage:
 	invoke ShowStartStr
-	cmp ebx, VK_RETURN
+	cmp ebx, VK_RETURN									;;if user preses enter, start the game
 	jne done
 	mov newstate, 1
 	Invoke BackgroundSong
 	jmp done
 
 playing:
-	cmp ebx, VK_SPACE
+	cmp ebx, VK_SPACE										;;if user preses space, pause the game
 	je pause_game
-	cmp ebx, VK_Q
+	cmp ebx, VK_Q												;;if user preses Q, end the game
 	jne done
 	invoke LostGame
 	mov playmainsong, 0
@@ -113,7 +127,7 @@ pause_game:
 
 paused:
 	invoke ShowPausedStr
-	cmp ebx, VK_RETURN
+	cmp ebx, VK_RETURN											;;if user preses enter, resume the game
 	jne done
 	mov newstate, 1
 	invoke BackgroundSong
@@ -121,7 +135,7 @@ paused:
 
 overpage:
 	invoke ShowOverStr
-	cmp ebx, VK_RETURN
+	cmp ebx, VK_RETURN											;;if user preses enter, restart the game
 	jne done
 	invoke ResetGame
 	mov newstate, 1
@@ -130,9 +144,9 @@ overpage:
 
 switchlevel:
 	invoke ShowLevelStr
-	cmp ebx, VK_RETURN
+	cmp ebx, VK_RETURN											;;if user preses enter, move to the next level
 	je newlevel
-	cmp ebx, VK_Q
+	cmp ebx, VK_Q														;;if user preses Q, end the game
 	jne done
 	mov newstate, 3
 	jmp done
@@ -148,32 +162,48 @@ done:
 	ret
 HandleInput ENDP
 
+
+; #########################################################################
+
+;;;;;;;;;;;;;   GAME LEVELS FUNCTIONS
+
+; #########################################################################
+
+;;checks if user has enough foodpoints to advance to next level
 PlayerLevel PROC USES ebx
 	lea ebx, player
 	cmp currlevel, 1
 	je level1
 level2:
-	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 10
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 10						;;need 10 points on level 2
 	jl done
 	mov game_state, 4
-	invoke Passed
+	invoke Passed																				;; play applause audio
 	jmp done
 level1:
-	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 5							;;need 5 points on level 1
 	jl done
-	mov game_state, 4
-	invoke Passed
+	mov game_state, 4																		
+	invoke Passed																				;; play applause audio
 done:
 	ret
 PlayerLevel ENDP
 
+
+;; move player to level 2
 LevelUp PROC
 	mov currlevel, 2
 	ret
 LevelUp ENDP
+
+
+; #########################################################################
+
 ;;;;;;;;;;;;;   SHOP FUNCTIONS
 
+; #########################################################################
 
+;; set the shop position
 CreateShop PROC USES esi
 	lea esi, shop
 	mov (GAMEOBJECT PTR[esi]).posX, 20971520
@@ -182,6 +212,7 @@ done:
 	ret
 CreateShop ENDP
 
+;; show shop on the screen
 InitShop PROC USES esi ebx
 	LOCAL x:DWORD, y:DWORD
 	lea esi, shop
@@ -195,6 +226,7 @@ InitShop PROC USES esi ebx
 	ret
 InitShop ENDP
 
+;; check if user is at the shop
 Shopping PROC USES ebx esi edx edi
 	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	lea ebx, player
@@ -220,19 +252,19 @@ Shopping PROC USES ebx esi edx edi
 	jl done
 	cmp (GAMEOBJECT PTR[ebx]).posX, 24903680
 	jg done
-	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 3
+	cmp (GAMEOBJECT PTR[ebx]).foodpoints, 3																		;; ensure user has enough foodpoints to make purchase
 	jl broke
 shopnow:
-	invoke DrawStr, offset SelectStr, 180, 200, 000h
+	invoke DrawStr, offset SelectStr, 180, 200, 000h													
 	mov ecx, KeyPress
-	cmp ecx, VK_L
+	cmp ecx, VK_L																															;; if user presses L, inc lives and dec foodpoints
 	je buy_life
 	jmp done
 buy_life:
 	add (GAMEOBJECT PTR[ebx]).lives, 1
 	sub (GAMEOBJECT PTR[ebx]).foodpoints, 3
 	invoke MadePurchase
-	mov playcashsound, 1
+	mov playcashsound, 1																											;; play cash audio after purchase
 	mov playmainsong, 0
 	mov playeatingsound, 0
 	jmp done
@@ -249,8 +281,13 @@ done:
 	ret
 Shopping ENDP
 
+; #########################################################################
 
 ;;;;;;;;;;;;;   PLAYER FUNCTIONS
+
+; #########################################################################
+
+;; sets the players position
 SetPlayerPos PROC USES edx ecx edi
 	lea edx, player
 	push ecx
@@ -267,11 +304,11 @@ SetPlayerPos PROC USES edx ecx edi
 	pop ecx
 	add eax, 1966080
 	mov (GAMEOBJECT PTR[edx]).posY, eax
-	invoke SafeZone
+	invoke SafeZone																						;; confirm that enemies/food/shop not at the same position
 	ret
 SetPlayerPos ENDP
 
-
+;; confirm that enemies/food/shop not at the same position
 SafeZone PROC USES ebx ecx edx esi
 	LOCAL left:DWORD, right:DWORD, top:DWORD, bottom:DWORD, centerx:DWORD, centery:DWORD, currx:DWORD, curry:DWORD
 	lea ebx, player
@@ -293,7 +330,7 @@ SafeZone PROC USES ebx ecx edx esi
 	sub top, 30
 	sar bottom, 16
 	add bottom, 30
-checkfood:
+checkfood:																										;; confirm that food is not in 30 pixel radius
 	lea ecx, food
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
@@ -313,7 +350,7 @@ checkfood:
 	invoke CheckIntersect, centerx, bottom, OFFSET spongebob, currx, curry, (GAMEOBJECT PTR[ecx]).bmap
 	cmp eax, 0
 	jne ResetPos
-checkshop:
+checkshop:																													;; confirm that shop is not in 30 pixel radius
 	lea ecx, shop
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
@@ -334,7 +371,7 @@ checkshop:
 	cmp eax, 0
 	jne ResetPos
 
-checkenemies:
+checkenemies:																												;; confirm that enemies are not in 30 pixel radius
 	lea ecx, enemies
 	mov esi, 0
 	jmp cond
@@ -366,13 +403,13 @@ cond:
 	jmp done
 
 ResetPos:
-	invoke SetPlayerPos
+	invoke SetPlayerPos																				;; set new position if current position not safe
 
 done:
 	ret
 SafeZone ENDP
 
-
+;; sets player attributes
 CreatePlayer PROC USES ecx
 	invoke SetPlayerPos
 	lea ecx, player
@@ -384,6 +421,7 @@ done:
 	ret
 CreatePlayer ENDP
 
+;; shows player on screen
 InitPlayer PROC USES ebx edx
 	LOCAL x:DWORD, y:DWORD
 	lea ebx, player
@@ -397,8 +435,8 @@ InitPlayer PROC USES ebx edx
 	ret
 InitPlayer ENDP
 
-
-UpdatePlayer PROC USES ebx ecx
+;; uses arrows keys to set player's velocity
+UpdatePlayer PROC USES ebx ecx esi
   mov ecx, OFFSET player
   mov ebx, KeyPress
   cmp falling, 0
@@ -427,8 +465,8 @@ right:
   jmp moveplayer
 
 playerfalling:
-  mov (GAMEOBJECT PTR[ecx]).velY, 327680
-  mov (GAMEOBJECT PTR[ecx]).velX, 0
+	mov esi, falling_acceleration																															;;player skeleton falls with non constant velocity
+  add (GAMEOBJECT PTR[ecx]).velY, esi
 
 moveplayer:
 	invoke PlayerMove, ebx
@@ -439,7 +477,7 @@ done:
 	ret												;; Do not delete this line!!!
 UpdatePlayer ENDP
 
-
+;; sets player's new position using their velocity
 PlayerMove PROC USES ecx edx ebx esi mykey:DWORD
 	lea ecx, OFFSET player
 	cmp falling, 0
@@ -462,21 +500,25 @@ y_dir:
 	add (GAMEOBJECT PTR[ecx]).posY, edx
   jmp done
 playerfalling:
-  mov edx, (GAMEOBJECT PTR[ecx]).velY
+  mov edx, (GAMEOBJECT PTR[ecx]).velY																;;player skeleton falls with non constant velocity, see line 468
   add (GAMEOBJECT PTR[ecx]).posY, edx
   cmp (GAMEOBJECT PTR[ecx]).posY, 26214400
   jl done
   mov falling, 0
   mov (GAMEOBJECT PTR[ecx]).bmap, OFFSET spongebob
-  invoke SetPlayerPos
+  invoke SetPlayerPos																								;; make player reappear after skeleton gets to bottom of screen
 
 done:
 	ret
 PlayerMove ENDP
 
-
+; #########################################################################
 
 ;;;;;;;;;;;;;   ENEMY FUNCTIONS
+
+; #########################################################################
+
+;; sets the enemy positions using nrandom
 SetEnemyPos PROC USES ecx edx edi myaddr:DWORD
 	mov ecx, myaddr
 	push ecx
@@ -497,11 +539,12 @@ SetEnemyPos PROC USES ecx edx edi myaddr:DWORD
 	pop ecx
 	add eax, 1966080
 	mov (GAMEOBJECT PTR[ecx]).posY, eax
-	invoke SafeEnemyZone, ecx
+	invoke SafeEnemyZone, ecx																						;; confirm that player/food/shop not at the same position
 done:
 	ret
 SetEnemyPos ENDP
 
+;; sets the enemy velocities using nrandom
 SetEnemyVel PROC USES ecx edx edi myaddr:DWORD
 	mov ecx, myaddr
 set_vel_x:
@@ -540,6 +583,7 @@ done:
 	ret
 SetEnemyVel ENDP
 
+;; confirm that player/food/shop not at the same position
 SafeEnemyZone PROC USES ebx ecx edx esi myaddr:DWORD
 	LOCAL left:DWORD, right:DWORD, top:DWORD, bottom:DWORD, centerx:DWORD, centery:DWORD, currx:DWORD, curry:DWORD
 	mov ebx, myaddr
@@ -561,7 +605,7 @@ SafeEnemyZone PROC USES ebx ecx edx esi myaddr:DWORD
 	sub top, 30
 	sar bottom, 16
 	add bottom, 30
-checkplayer:
+checkplayer:																															;; confirm that player is not in 30 pixel radius
 	lea ecx, player
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
@@ -581,7 +625,7 @@ checkplayer:
 	invoke CheckIntersect, centerx, bottom, OFFSET patty, currx, curry, (GAMEOBJECT PTR[ecx]).bmap
 	cmp eax, 0
 	jne ResetPos
-checkshop:
+checkshop:																																	;; confirm that shop is not in 30 pixel radius
 	lea ecx, shop
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
@@ -601,7 +645,7 @@ checkshop:
 	invoke CheckIntersect, centerx, bottom, OFFSET patty, currx, curry, (GAMEOBJECT PTR[ecx]).bmap
 	cmp eax, 0
 	jne ResetPos
-checkfood:
+checkfood:																																		;; confirm that food is not in 30 pixel radius
 	lea ecx, food
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
@@ -621,7 +665,7 @@ checkfood:
 	invoke CheckIntersect, centerx, bottom, OFFSET patty, currx, curry, (GAMEOBJECT PTR[ecx]).bmap
 	cmp eax, 0
 	jne ResetPos
-checkenemies:
+checkenemies:																																			;; confirm that other enemies is not in 30 pixel radius
 	lea ecx, enemies
 	mov esi, 0
 	jmp cond
@@ -655,12 +699,13 @@ cond:
 	jmp done
 
 ResetPos:
-	invoke SetEnemyPos, myaddr
+	invoke SetEnemyPos, myaddr																												;; set new position if current position not safe
 
 done:
 	ret
 SafeEnemyZone ENDP
 
+;; sets enemy attributes
 CreateEnemies PROC USES ecx edi edx esi
 	lea ecx, enemies
 	mov edi, 0
@@ -683,6 +728,29 @@ done:
 	ret
 CreateEnemies ENDP
 
+;; restore enemies to original positions before initializing them
+;; takes care of level increments/decrements because each level has a different number of enemies
+RestoreEnemies PROC USES ecx edi edx esi
+	lea ecx, enemies
+	mov edi, 0
+	mov edx, TYPE enemies
+
+mainloop:
+	mov (GAMEOBJECT PTR[ecx]).posX, 42598400
+	mov (GAMEOBJECT PTR[ecx]).posY, 32112640
+	mov (GAMEOBJECT PTR[ecx]).velX, 0
+	mov (GAMEOBJECT PTR[ecx]).velY, 0
+inc_:
+	inc edi
+	add ecx, edx
+cond:
+	cmp edi, LENGTHOF enemies
+	jl mainloop
+done:
+	ret
+RestoreEnemies ENDP
+
+;; show enemies on screen
 InitEnemies PROC USES ecx edi edx ebx
 	LOCAL x:DWORD, y:DWORD
 	lea ecx, enemies
@@ -706,7 +774,7 @@ done:
 	ret
 InitEnemies ENDP
 
-
+;; update enemy positions
 UpdateEnemies PROC USES ecx edi edx esi
 	lea ecx, enemies
 	mov edi, 0
@@ -741,72 +809,21 @@ done:
 	ret
 Enemymove ENDP
 
-EnemyCollisions PROC USES ecx esi edx edi ebx
-	LOCAL outerX:DWORD, outerY:DWORD, innerX:DWORD, innerY:DWORD, index:DWORD, len: DWORD, startaddr:DWORD
-	mov len, 5
-	cmp currlevel, 1
-	je start
-	mov len, 7
-start:
-	lea ecx, enemies
-	mov startaddr, ecx
-	xor esi, esi
-	jmp outercond
 
-outerloop:
-	mov edx, (GAMEOBJECT PTR[ecx]).posX
-	mov outerX, edx
-	sar outerX, 16
-	mov edx, (GAMEOBJECT PTR[ecx]).posY
-	mov outerY, edx
-	sar outerY, 16
-	mov edi, TYPE enemies
-	jmp innercond
-innerloop:
-	mov ebx, edi
-	imul ebx, index
-	add ebx, startaddr
-	mov edx, (GAMEOBJECT PTR[ebx]).posX
-	mov innerX, edx
-	sar innerX, 16
-	mov edx, (GAMEOBJECT PTR[ebx]).posY
-	mov innerY, edx
-	sar innerY, 16
-	invoke CheckIntersect, outerX, outerY, OFFSET plankton, innerX, innerY, OFFSET plankton
-	cmp eax, 0
-	je innerinc_
-	neg (GAMEOBJECT PTR[ecx]).velX
-	neg (GAMEOBJECT PTR[ebx]).velX
-	neg (GAMEOBJECT PTR[ecx]).velY
-	neg (GAMEOBJECT PTR[ebx]).velY
 
-innerinc_:
-	inc index
-innercond:
-	mov eax, index
-	cmp eax, len
-	jl innerloop
 
-outerinc_:
-	inc esi
-	add ecx, TYPE enemies
-outercond:
-	mov index, esi
-	inc index
-	cmp esi, len
-	jl outerloop
-	jmp done
-done:
-	ret
-EnemyCollisions ENDP
-
+; #########################################################################
 
 ;;;;;;;;;;;;;   FOOD FUNCTIONS
+
+; #########################################################################
+
+;; set food position using nrandom
 SetFoodPos PROC USES edx ecx edi
 	lea edx, food
 	push ecx
 	push edx
-	invoke nrandom, 38666240
+	invoke nrandom, 38010880
 	pop edx
 	pop ecx
 	add eax, 1638400
@@ -818,10 +835,11 @@ SetFoodPos PROC USES edx ecx edi
 	pop ecx
 	add eax, 1638400
 	mov (GAMEOBJECT PTR[edx]).posY, eax
-	invoke SafeFoodZone
+	invoke SafeFoodZone																					;; confirm that enemies/player/shop not at the same position
 	ret
 SetFoodPos ENDP
 
+;; confirm that enemies/player/shop not at the same position
 SafeFoodZone PROC USES ebx ecx edx esi
 	LOCAL left:DWORD, right:DWORD, top:DWORD, bottom:DWORD, centerx:DWORD, centery:DWORD, currx:DWORD, curry:DWORD
 	lea ebx, food
@@ -843,8 +861,8 @@ SafeFoodZone PROC USES ebx ecx edx esi
 	sub top, 30
 	sar bottom, 16
 	add bottom, 30
-checkplayer:
-	lea ecx, player
+checkplayer:																																									;; confirm that player is not in 30 pixel radius
+	lea ecx, player																																								
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
 	sar currx, 16
@@ -863,7 +881,7 @@ checkplayer:
 	invoke CheckIntersect, centerx, bottom, OFFSET patty, currx, curry, (GAMEOBJECT PTR[ecx]).bmap
 	cmp eax, 0
 	jne ResetPos
-checkshop:
+checkshop:																																										;; confirm that player is not in 30 pixel radius
 	lea ecx, shop
 	mov edx, (GAMEOBJECT PTR[ecx]).posX
 	mov currx, edx
@@ -884,7 +902,7 @@ checkshop:
 	cmp eax, 0
 	jne ResetPos
 
-checkenemies:
+checkenemies:																																												;; confirm that enemies not in 30 pixel radius
 	lea ecx, enemies
 	mov esi, 0
 	jmp cond
@@ -922,6 +940,7 @@ done:
 	ret
 SafeFoodZone ENDP
 
+;; show food on screen 
 InitFood PROC USES edx ebx
 	LOCAL x:DWORD, y:DWORD
 	lea edx, food
@@ -936,8 +955,13 @@ InitFood PROC USES edx ebx
 InitFood ENDP
 
 
+; #########################################################################
 
-;;;;;;;;;;;;    Collision functions
+;;;;;;;;;;;;;   COLLISION FUNCTIONS
+
+; #########################################################################
+
+;;; check if player collided with any of the enemies
 PlayerEnemyCollision PROC USES ecx ebx edx edi esi
 	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	cmp falling, 0
@@ -965,17 +989,17 @@ mainloop:
 	cmp eax, 0
 	jne reduce_lives
 	jmp inc_
-reduce_lives:
-	sub (GAMEOBJECT PTR[ebx]).lives, 1
+reduce_lives:																										;; if collision happenned
+	sub (GAMEOBJECT PTR[ebx]).lives, 1														;; reduce player lives
 	mov falling, 1
-	mov (GAMEOBJECT PTR[ebx]).bmap, OFFSET deadspongebob
-	cmp (GAMEOBJECT PTR[ebx]).lives, 0
+	mov (GAMEOBJECT PTR[ebx]).bmap, OFFSET deadspongebob					;; make bmap, a skeleton
+	cmp (GAMEOBJECT PTR[ebx]).lives, 0														;; if lives are depleted
 	jg inc_
-	invoke LostGame
+	invoke LostGame																								;; play spongebob_stinks audio
 	mov playmainsong, 0
 	mov playcashsound, 0
 	mov playeatingsound, 0
-	mov currlevel, 1
+	mov currlevel, 1																							;; reset to level 1
 inc_:
 	inc edi
 	add ecx, edx
@@ -987,6 +1011,7 @@ done:
 	ret
 PlayerEnemyCollision ENDP
 
+;;; check if player collided with food
 PlayerAte PROC USES ebx esi edx
 	LOCAL x1:DWORD, y1:DWORD, x2:DWORD, y2:DWORD
 	lea ebx, player
@@ -1006,11 +1031,11 @@ PlayerAte PROC USES ebx esi edx
 	invoke CheckIntersect, x1, y1, (GAMEOBJECT PTR[ebx]).bmap, x2, y2, (GAMEOBJECT PTR[esi]).bmap
 	cmp eax, 0
 	je done
-add_foodpoints:
+add_foodpoints:																												;; if intersecting
 	mov playmainsong, 0
 	mov playeatingsound, 1
-  	invoke FedSong
-	add (GAMEOBJECT PTR[ebx]).foodpoints, 1
+  invoke FedSong																											;;play laugh audio
+	add (GAMEOBJECT PTR[ebx]).foodpoints, 1															;; increment food points
 newfoodpos:
 	invoke SetFoodPos
 done:
@@ -1018,204 +1043,67 @@ done:
 PlayerAte ENDP
 
 
-;;;;;;;;;;;;;   SCREEN FUNCTIONS
-
-
-
-ClearScreen PROC USES ebx
-	mov ebx, ScreenBitsPtr
-	mov eax, 0
-	jmp cond
-mainloop:
-	mov (BYTE PTR[ebx]), 000h
-	inc ebx
-	inc eax
-cond:
-	cmp eax, 307200
-	jl mainloop
-exit:
-	ret
-ClearScreen ENDP
-
-AddBackground PROC USES esi ebx
-	LOCAL x:DWORD, y:DWORD
-	lea esi, background
-	mov ebx, (GAMEOBJECT PTR[esi]).posX
-	sar ebx, 16
-	mov x, ebx
-	mov ebx, (GAMEOBJECT PTR[esi]).posY
-	sar ebx, 16
-	mov y, ebx
-	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
-	ret
-AddBackground ENDP
-
-ThemeSong PROC
-    INVOKE PlaySound, NULL, 0, SND_ASYNC
-    INVOKE PlaySound, offset themesong, 0, SND_FILENAME OR SND_ASYNC
-    ret
-ThemeSong ENDP
-
-BackgroundSong PROC
-    INVOKE PlaySound, NULL, 0, SND_ASYNC
-    INVOKE PlaySound, offset mainsong, 0, SND_FILENAME OR SND_ASYNC OR SND_LOOP
-    ret
-BackgroundSong ENDP
-
-FedSong PROC
-    INVOKE PlaySound, NULL, 0, SND_ASYNC
-    INVOKE PlaySound, offset atepatty, 0, SND_ASYNC
-    ret
-FedSong ENDP
-
-
-Passed PROC
-    INVOKE PlaySound, NULL, 0, SND_ASYNC
-    INVOKE PlaySound, offset passedlevel, 0, SND_ASYNC
-    ret
-Passed ENDP
-
-MadePurchase PROC
-    INVOKE PlaySound, NULL, 0, SND_ASYNC
-    INVOKE PlaySound, offset shopped, 0, SND_ASYNC
-    ret
-MadePurchase ENDP
-
-LostGame PROC
-    INVOKE PlaySound, NULL, 0, SND_ASYNC
-    INVOKE PlaySound, offset lost, 0, SND_ASYNC
-    ret
-LostGame ENDP
-
-;;;;;;;;;;;;;   MAIN FUNCTIONS
-
-RestoreEnemies PROC USES ecx edi edx esi
+;; if enemies collide, they should bounce off each other
+EnemyCollisions PROC USES ecx esi edx edi ebx
+	LOCAL outerX:DWORD, outerY:DWORD, innerX:DWORD, innerY:DWORD, index:DWORD, len: DWORD, startaddr:DWORD
+	mov len, 5
+	cmp currlevel, 1
+	je start
+	mov len, 7
+start:
 	lea ecx, enemies
-	mov edi, 0
-	mov edx, TYPE enemies
+	mov startaddr, ecx
+	xor esi, esi
+	jmp outercond
 
-mainloop:
-	mov (GAMEOBJECT PTR[ecx]).posX, 42598400
-	mov (GAMEOBJECT PTR[ecx]).posY, 32112640
-	mov (GAMEOBJECT PTR[ecx]).velX, 0
-	mov (GAMEOBJECT PTR[ecx]).velY, 0
-inc_:
-	inc edi
-	add ecx, edx
-cond:
-	cmp edi, LENGTHOF enemies
-	jl mainloop
-done:
-	ret
-RestoreEnemies ENDP
+outerloop:
+	mov edx, (GAMEOBJECT PTR[ecx]).posX
+	mov outerX, edx
+	sar outerX, 16
+	mov edx, (GAMEOBJECT PTR[ecx]).posY
+	mov outerY, edx
+	sar outerY, 16
+	mov edi, TYPE enemies
+	jmp innercond
+innerloop:
+	mov ebx, edi
+	imul ebx, index
+	add ebx, startaddr
+	mov edx, (GAMEOBJECT PTR[ebx]).posX
+	mov innerX, edx
+	sar innerX, 16
+	mov edx, (GAMEOBJECT PTR[ebx]).posY
+	mov innerY, edx
+	sar innerY, 16
+	invoke CheckIntersect, outerX, outerY, OFFSET plankton, innerX, innerY, OFFSET plankton
+	cmp eax, 0
+	je innerinc_
+	neg (GAMEOBJECT PTR[ecx]).velX												;; negate velocities of both to bounce off each other
+	neg (GAMEOBJECT PTR[ebx]).velX
+	neg (GAMEOBJECT PTR[ecx]).velY
+	neg (GAMEOBJECT PTR[ebx]).velY
 
+innerinc_:
+	inc index
+innercond:
+	mov eax, index
+	cmp eax, len
+	jl innerloop
 
-ResetGame PROC
-	invoke ClearScreen
-	invoke AddBackground
-	invoke SetFoodPos
-	invoke CreateShop
-	invoke RestoreEnemies
-	invoke CreateEnemies
-	invoke CreatePlayer
-  	mov falling, 0
-	ret
-ResetGame ENDP
-GameInit PROC
-	invoke ClearScreen
-	invoke AddBackground
-	invoke SetFoodPos
-	invoke CreateShop
-	invoke RestoreEnemies
-	invoke CreateEnemies
-	invoke CreatePlayer
-	invoke StatusBoard
-	invoke ThemeSong
-	mov game_state, 0
-  	mov falling, 0
-	rdtsc
-	invoke nseed, eax
-	ret         ;; Do not delete this line!!!
-GameInit ENDP
-
-
-
-GamePlay PROC uses ebx
-	invoke ClearScreen
-	invoke AddBackground
-	invoke HandleInput
-	cmp game_state, 0
-	je done
-	cmp game_state, 3
-	je done
-	cmp game_state, 4
-	je done
-
-main:
-	invoke InitFood
-	invoke InitShop
-	invoke InitPlayer
-	invoke InitEnemies
-	invoke StatusBoard
-
-
-	cmp game_state, 2
-	je done
-sounds:
-	cmp playmainsong, 1
-	je move
-	cmp playeatingsound, 1
-	je eatingsong
-	cmp playcashsound, 1
-	je chaching
-	jmp move
-
-chaching:
-	add cashsoundcount, 1
-	cmp cashsoundcount, 20
-	jl move
-	mov playcashsound, 0
-	mov playmainsong, 1
-	mov eatingsoundcount, 0
-	invoke BackgroundSong
-	jmp move
-
-eatingsong:
-	add eatingsoundcount, 1
-	cmp eatingsoundcount, 20
-	jl move
-	mov playeatingsound, 0
-	mov playmainsong, 1
-	mov eatingsoundcount, 0
-	invoke BackgroundSong
-	jmp move
-
-move:
-	lea ebx, player
-	add (GAMEOBJECT PTR[ebx]).score, 8192
-	invoke UpdatePlayer
-	invoke UpdateEnemies
-	invoke Shopping
-	invoke PlayerAte
-keep_playing:
-	invoke PlayerEnemyCollision
-	invoke EnemyCollisions
-
-player_alive:
-	lea ebx, player
-	cmp (GAMEOBJECT PTR[ebx]).lives, 0
-	jne levelcheck
-
-game_over:
-	mov game_state, 3
+outerinc_:
+	inc esi
+	add ecx, TYPE enemies
+outercond:
+	mov index, esi
+	inc index
+	cmp esi, len
+	jl outerloop
 	jmp done
-levelcheck:
-	invoke PlayerLevel
 done:
-	ret         ;; Do not delete this line!!!
-GamePlay ENDP
+	ret
+EnemyCollisions ENDP
 
-;;; INTERSECT FUNCTIONS
+;;; check if two sprites are intresecting
 CheckIntersect PROC USES ebx ecx edx oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 	xor eax, eax
 
@@ -1294,7 +1182,7 @@ exit:
 	ret												;; Do not delete this line!!!
 CheckIntersect ENDP
 
-
+;; ensure each object stays within the screen
 CheckBounds PROC USES ecx edx edi esi newvelx:FXPT , newvely:FXPT , myobj:DWORD
 	LOCAL xpos:DWORD, ypos:DWORD, xvel:DWORD, yvel:DWORD
 
@@ -1343,6 +1231,200 @@ check_north_wall:
 done:
 	ret
 CheckBounds ENDP
+
+
+; #########################################################################
+
+;;;;;;;;;;;;;   SCREEN FUNCTIONS
+
+; #########################################################################
+
+;; clear screen
+ClearScreen PROC USES ebx
+	mov ebx, ScreenBitsPtr
+	mov eax, 0
+	jmp cond
+mainloop:
+	mov (BYTE PTR[ebx]), 000h
+	inc ebx
+	inc eax
+cond:
+	cmp eax, 307200
+	jl mainloop
+exit:
+	ret
+ClearScreen ENDP
+
+;; add bikini bottom background
+AddBackground PROC USES esi ebx
+	LOCAL x:DWORD, y:DWORD
+	lea esi, background
+	mov ebx, (GAMEOBJECT PTR[esi]).posX
+	sar ebx, 16
+	mov x, ebx
+	mov ebx, (GAMEOBJECT PTR[esi]).posY
+	sar ebx, 16
+	mov y, ebx
+	invoke BasicBlit, (GAMEOBJECT PTR[esi]).bmap, x, y
+	ret
+AddBackground ENDP
+
+
+; #########################################################################
+
+;;;;;;;;;;;;;   AUDIO FUNCTIONS
+
+; #########################################################################
+
+ThemeSong PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset themesong, 0, SND_FILENAME OR SND_ASYNC
+    ret
+ThemeSong ENDP
+
+BackgroundSong PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset mainsong, 0, SND_FILENAME OR SND_ASYNC OR SND_LOOP
+    ret
+BackgroundSong ENDP
+
+FedSong PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset atepatty, 0, SND_ASYNC
+    ret
+FedSong ENDP
+
+
+Passed PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset passedlevel, 0, SND_ASYNC
+    ret
+Passed ENDP
+
+MadePurchase PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset shopped, 0, SND_ASYNC
+    ret
+MadePurchase ENDP
+
+LostGame PROC
+    INVOKE PlaySound, NULL, 0, SND_ASYNC
+    INVOKE PlaySound, offset lost, 0, SND_ASYNC
+    ret
+LostGame ENDP
+
+; #########################################################################
+
+;;;;;;;;;;;;;   MAIN FUNCTIONS
+
+; #########################################################################
+
+;; reset game after player loses or advances to new level
+ResetGame PROC
+	invoke ClearScreen                      ;; clear screen
+	invoke AddBackground										;; add bikini bottom background
+	invoke SetFoodPos												;; set food position
+	invoke CreateShop												;; set shop attributes
+	invoke RestoreEnemies										;; reset original enemy attributes
+	invoke CreateEnemies										;; set enemy attributes
+	invoke CreatePlayer											;; set player attributes
+  mov falling, 0
+	ret
+ResetGame ENDP
+GameInit PROC
+	invoke ClearScreen                      ;; clear screen
+	invoke AddBackground										;; add bikini bottom background
+	invoke SetFoodPos												;; set food position
+	invoke CreateShop												;; set shop attributes
+	invoke CreateEnemies										;; set enemy attributes
+	invoke CreatePlayer											;; set player attributes
+	;invoke StatusBoard											
+	invoke ThemeSong												;; invoke theme song on welcome page
+	mov game_state, 0	
+  mov falling, 0
+	rdtsc
+	invoke nseed, eax
+	ret         ;; Do not delete this line!!!
+GameInit ENDP
+
+
+
+GamePlay PROC uses ebx
+	invoke ClearScreen												;; clear screen
+	invoke AddBackground											;; add bikini bottom background
+	invoke HandleInput												;; handle user's input
+	cmp game_state, 0													;; if on welcome page return
+	je done
+	cmp game_state, 3													;; if on game over page return
+	je done
+	cmp game_state, 4													;; if on advance level page return
+	je done
+
+main:																				;; show objects on the screen
+	invoke InitFood
+	invoke InitShop
+	invoke InitPlayer
+	invoke InitEnemies
+	invoke StatusBoard
+
+
+	cmp game_state, 2													;; if game on pause return
+	je done
+sounds:																			;; play current audio
+	cmp playmainsong, 1
+	je move
+	cmp playeatingsound, 1
+	je eatingsong
+	cmp playcashsound, 1
+	je chaching
+	jmp move
+
+chaching:
+	add cashsoundcount, 1
+	cmp cashsoundcount, 20
+	jl move
+	mov playcashsound, 0
+	mov playmainsong, 1
+	mov eatingsoundcount, 0
+	invoke BackgroundSong
+	jmp move
+
+eatingsong:
+	add eatingsoundcount, 1
+	cmp eatingsoundcount, 20
+	jl move
+	mov playeatingsound, 0
+	mov playmainsong, 1
+	mov eatingsoundcount, 0
+	invoke BackgroundSong
+	jmp move
+
+move:																				;; update object positions
+	lea ebx, player
+	add (GAMEOBJECT PTR[ebx]).score, 8192
+	invoke UpdatePlayer
+	invoke UpdateEnemies
+
+collisions:																	;; check for object collisions and make updates
+	invoke Shopping
+	invoke PlayerAte
+	invoke PlayerEnemyCollision
+	invoke EnemyCollisions
+
+player_alive:																;; if player dead, change game-state
+	lea ebx, player
+	cmp (GAMEOBJECT PTR[ebx]).lives, 0
+	jne levelcheck
+
+game_over:
+	mov game_state, 3
+	jmp done
+
+levelcheck:																			;; check if player won and advance level
+	invoke PlayerLevel
+done:
+	ret         ;; Do not delete this line!!!
+GamePlay ENDP
 
 
 END
