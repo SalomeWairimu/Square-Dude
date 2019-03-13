@@ -51,11 +51,12 @@ ShowOverStr PROTO
 ShowLevelStr PROTO
 
 ;;;;;;;;;;;;;   GameState Sounds
-PlayAudio PROTO audio:DWORD
 BackgroundSong PROTO
 ThemeSong PROTO
 FedSong PROTO
-HitEnemy PROTO
+Passed PROTO
+MadePurchase PROTO
+LostGame PROTO
 
 ;;; intersect functions
 CheckBounds PROTO newvelx:FXPT , newvely:FXPT , myobj:DWORD
@@ -75,6 +76,7 @@ Shopping PROTO
 
 ;;;;;;;;;;;;;   PLAYER FUNCTIONS
 SetPlayerPos PROTO
+SafeZone PROTO
 CreatePlayer PROTO
 InitPlayer PROTO
 UpdatePlayer PROTO
@@ -85,10 +87,12 @@ PlayerMove PROTO mykey:DWORD
 CreateEnemies PROTO
 InitEnemies PROTO
 UpdateEnemies PROTO
+EnemyCollisions PROTO
 Enemymove PROTO obj:DWORD
 
 ;;;;;;;;;;;;;   FOOD FUNCTIONS
 SetFoodPos PROTO
+SafeFoodZone PROTO
 InitFood PROTO
 
 ;;;;;;;;;;;;    Collision functions
